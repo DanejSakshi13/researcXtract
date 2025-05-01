@@ -1,0 +1,1 @@
+A project for extracting and analyzing research papers, consisting of a React frontend and a Flask backend.
