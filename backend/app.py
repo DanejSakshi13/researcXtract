@@ -901,7 +901,7 @@ def analyze_pdf():
         }}
         - For "title", extract the exact title of the paper, typically found at the top of the first page.
         - For "authors", list all author names as they appear (e.g., "Christian Szegedy").
-        - For "summary", provide a concise summary of the paper's abstract and introduction in {word_limit} words.
+        - For "summary", provide a concise summary of the paper's abstract and introduction in {word_limit} words, formatted as concise bullet points.
         - For "keywords", extract all keywords listed in the paper's "Keywords" section. If no "Keywords" section exists, infer 5–10 keywords from the abstract and introduction, focusing on technical terms and concepts central to the paper (e.g., "Inception", "convolutional neural networks").
         - For "citations", extract ALL citations listed in the paper's "References" or bibliography section, preserving their exact formatting as they appear (e.g., "S. Arora, A. Bhaskara, ..."). Include all citations, handling LaTeX formatting, special characters, and metadata (e.g., DOIs, URLs). Do not modify or reformat the citations.
         - If a field cannot be extracted, use appropriate defaults (e.g., "Untitled" for title, [] for lists, "No summary available" for summary).
@@ -970,7 +970,7 @@ def summarize_section():
             "section": "{section}",
             "summary": "string (summarize in {word_limit} words)"
         }}
-        - Ensure the summary is concise, accurate, and based only on the provided text.
+        - Ensure the summary is concise, accurate, and based only on the provided text formatted as concise bullet points.
         - Ensure the response is valid JSON.
         Text (up to 45,000 characters):
         {prompt_text}

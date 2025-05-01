@@ -1,17 +1,20 @@
 import React from 'react';
 import styled from 'styled-components';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+
 
 const UploadContainer = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
+  
   justify-content: center;
-  height: 100px;
+  /* height: 10%; */
   background-color: #2c2c2c;
-  border: 1px solid #5f5f5f;
+  /* border: 1px solid #5f5f5f; */
   border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  /* padding: 20px; */
+  /* box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); */
 `;
 
 const UploadInput = styled.input`
@@ -35,9 +38,17 @@ const UploadLabel = styled.label`
 `;
 
 const UploadText = styled.span`
+  width: 175px;
+  text-align: center;
   font-size: 1rem;
   font-weight: 500;
   color: #1a1a1a;
+  /* display: flex; */
+`;
+
+const UploadDesc= styled.h2`
+  color: white;
+  text-align: center;
 `;
 
 const UploadButton = ({ handleUpload }) => {
@@ -56,8 +67,9 @@ const UploadButton = ({ handleUpload }) => {
         accept=".pdf"
         onChange={handleFileChange}
       />
+       {/* <UploadDesc>Upload Your Research Paper & Unlock Powerful Insights Instantly!</UploadDesc> */}
       <UploadLabel htmlFor="file-upload">
-        <UploadText>Upload Your Research Paper & Unlock Powerful Insights Instantly!</UploadText>
+        <UploadText>Upload </UploadText>
       </UploadLabel>
     </UploadContainer>
   );
