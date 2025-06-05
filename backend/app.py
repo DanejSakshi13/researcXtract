@@ -1,664 +1,3 @@
-# PERFECT CODE, PERFECT, PERFECT 1/5/25
-# from flask import Flask, request, jsonify
-# from flask_cors import CORS
-# import pdfplumber
-# import base64
-# import os
-# import json
-# import google.generativeai as genai
-# from dotenv import load_dotenv
-# import re
-# import time
-# from google.api_core.exceptions import ResourceExhausted
-# import requests
-# from sentence_transformers import SentenceTransformer
-# from numpy import dot
-# from numpy.linalg import norm
-# import imghdr
-# import pymongo
-# from bson.objectid import ObjectId
-# import logging
-# from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity, set_access_cookies, unset_jwt_cookies
-
-# app = Flask(__name__)
-# CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173", "methods": ["GET", "POST", "OPTIONS", "DELETE"], "allow_headers": ["Content-Type", "Authorization"]}})
-
-# # Setup logging
-# logging.basicConfig(level=logging.INFO)
-# logger = logging.getLogger(__name__)
-
-# # Load environment variables
-# load_dotenv()
-# GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-# MONGO_URI = os.getenv("MONGO_URI")
-# JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key")
-# if not GOOGLE_API_KEY:
-#     raise ValueError("GOOGLE_API_KEY not found in .env file")
-# if not MONGO_URI:
-#     raise ValueError("MONGO_URI not found in .env file")
-# genai.configure(api_key=GOOGLE_API_KEY)
-
-# # Initialize MongoDB
-# try:
-#     client = pymongo.MongoClient(MONGO_URI)
-#     db = client.get_database("researchXtract")
-#     analyses_collection = db.analyses
-#     users_collection = db.users
-#     logger.info("Connected to MongoDB Atlas")
-# except Exception as e:
-#     logger.error(f"Failed to connect to MongoDB: {str(e)}")
-#     raise
-
-# # JWT Configuration
-# app.config["JWT_SECRET_KEY"] = JWT_SECRET_KEY
-# app.config["JWT_TOKEN_LOCATION"] = ["headers", "cookies"]
-# jwt = JWTManager(app)
-
-# # Handle OPTIONS requests for CORS preflight
-# @app.route('/api/<path:path>', methods=['OPTIONS'])
-# def handle_options(path):
-#     return '', 200
-
-# # Initialize Gemini model
-# MODEL_NAME = "gemini-1.5-pro"
-# model = genai.GenerativeModel(MODEL_NAME)
-
-# # Initialize sentence transformer for semantic similarity
-# sentence_model = SentenceTransformer('all-MiniLM-L6-v2')
-
-# # Store PDF text and chat history in memory (per session)
-# pdf_context = {"text": "", "session_id": None}
-# chat_history = []
-
-# def validate_input(text):
-#     return len(text) > 0 and len(text) < 250000
-
-# def query_gemini(prompt, max_tokens=512, retries=3, delay=10):
-#     for attempt in range(retries):
-#         try:
-#             response = model.generate_content(prompt, generation_config={"max_output_tokens": max_tokens})
-#             return response.text.strip()
-#         except ResourceExhausted as e:
-#             if attempt < retries - 1:
-#                 print(f"Quota exceeded, retrying in {delay} seconds... (Attempt {attempt + 1}/{retries})")
-#                 time.sleep(delay)
-#                 continue
-#             raise Exception(f"Gemini API quota exceeded after {retries} retries: {str(e)}")
-#         except Exception as e:
-#             raise Exception(f"Gemini API request failed: {str(e)}")
-
-# def cosine_similarity(a, b):
-#     return dot(a, b) / (norm(a) * norm(b))
-
-# # Authentication Routes
-# @app.route("/api/register", methods=["POST"])
-# def register():
-#     logger.info("Received POST request to /api/register")
-#     data = request.get_json()
-#     email = data.get("email")
-#     password = data.get("password")
-#     name = data.get("name", "Unknown")
-#     if not email or not password:
-#         return jsonify({"error": "Email and password are required"}), 400
-#     if users_collection.find_one({"email": email}):
-#         return jsonify({"error": "Email already registered"}), 400
-#     user_data = {"email": email, "password": password, "name": name, "token": None}
-#     logger.info(f"Registering user: {user_data}")  # Add logging
-#     users_collection.insert_one(user_data)
-#     return jsonify({"message": "User registered successfully."}), 201
-
-# @app.route("/api/login", methods=["POST"])
-# def login():
-#     logger.info("Received POST request to /api/login")
-#     data = request.get_json()
-#     email = data.get("email")
-#     password = data.get("password")
-#     user = users_collection.find_one({"email": email, "password": password})
-#     if not user:
-#         logger.error(f"Login failed for {email}: Invalid credentials")
-#         return jsonify({"error": "Invalid credentials"}), 401
-#     access_token = create_access_token(identity=email)
-#     users_collection.update_one({"email": email}, {"$set": {"token": access_token}})
-#     user_data = {"email": user["email"], "name": user.get("name", "Unknown")}
-#     logger.info(f"Login successful for {email}, user data: {user_data}")
-#     response = jsonify({"access_token": access_token, "user": user_data})
-#     set_access_cookies(response, access_token)
-#     return response, 200
-
-# @app.route("/api/user", methods=["GET"])
-# @jwt_required()
-# def get_user():
-#     email = get_jwt_identity()
-#     user = users_collection.find_one({"email": email}, {"_id": 0, "password": 0})
-#     if not user:
-#         logger.error(f"User not found for email: {email}")
-#         return jsonify({"error": "User not found"}), 404
-#     logger.info(f"User data for {email}: {user}")
-#     return jsonify({"user": user}), 200
-
-# @app.route("/api/logout", methods=["POST"])
-# @jwt_required()
-# def logout():
-#     logger.info("Received POST request to /api/logout")
-#     email = get_jwt_identity()
-#     users_collection.update_one({"email": email}, {"$set": {"token": None}})
-#     response = jsonify({"message": "Logged out successfully"})
-#     unset_jwt_cookies(response)
-#     return response, 200
-
-# @app.route("/api/user-history", methods=["GET"])
-# @jwt_required()
-# def user_history():
-#     email = get_jwt_identity()
-#     try:
-#         analyses = list(analyses_collection.find({"email": email}).sort("created_at", -1).limit(10))
-#         for analysis in analyses:
-#             analysis["_id"] = str(analysis["_id"])
-#             logger.info(f"History item {analysis['_id']}: chat_history = {analysis.get('chat_history', [])}")
-#         return jsonify({"history": analyses}), 200
-#     except Exception as e:
-#         logger.error(f"User history error: {str(e)}")
-#         return jsonify({"error": f"Failed to retrieve user history: {str(e)}"}), 500
-
-# @app.route("/api/analyze-pdf", methods=["POST"])
-# @jwt_required()
-# def analyze_pdf():
-#     if "file" not in request.files:
-#         return jsonify({"error": "No file provided"}), 400
-#     file = request.files["file"]
-#     word_limit = request.form.get("word_limit", 150)
-#     if not file.filename.endswith(".pdf"):
-#         return jsonify({"error": "Only PDF files are supported"}), 400
-
-#     try:
-#         with pdfplumber.open(file) as pdf:
-#             text = "".join(page.extract_text() or "" for page in pdf.pages)
-#         print(f"Extracted text length: {len(text)}")
-#         print(f"First 500 chars of extracted text: {text[:500]}")
-#         if not validate_input(text):
-#             return jsonify({"error": f"Invalid input: text length {len(text)} (must be 1-249999 characters)"}), 400
-
-#         global pdf_context, chat_history
-#         session_id = str(time.time())
-#         pdf_context = {"text": text, "session_id": session_id}
-#         chat_history = []
-
-#         prompt_text = text[:45000]
-#         if len(text) > 45000:
-#             ref_start = text.rfind("REFERENCES") or text.rfind("References")
-#             if ref_start != -1:
-#                 ref_text = text[ref_start:ref_start+20000]
-#                 prompt_text = text[:25000] + "\n" + ref_text
-#                 prompt_text = prompt_text[:45000]
-#             print(f"Text truncated to {len(prompt_text)} chars, References included: {ref_start != -1}")
-
-#         prompt = f"""
-#         Analyze the following research paper text and extract the specified fields.
-#         Return the response as a JSON object with the following structure:
-#         {{
-#             "title": "string",
-#             "authors": ["string", ...],
-#             "summary": "string (summarize in {word_limit} words)",
-#             "keywords": ["string", ...],
-#             "citations": ["string", ...]
-#         }}
-#         - For "title", extract the exact title of the paper, typically found at the top of the first page.
-#         - For "authors", list all author names as they appear (e.g., "Christian Szegedy").
-#         - For "summary", provide a concise summary of the paper's abstract and introduction in {word_limit} words.
-#         - For "keywords", extract all keywords listed in the paper's "Keywords" section. If no "Keywords" section exists, infer 5–10 keywords from the abstract and introduction, focusing on technical terms and concepts central to the paper (e.g., "Inception", "convolutional neural networks").
-#         - For "citations", extract ALL citations listed in the paper's "References" or bibliography section, preserving their exact formatting as they appear (e.g., "S. Arora, A. Bhaskara, ..."). Include all citations, handling LaTeX formatting, special characters, and metadata (e.g., DOIs, URLs). Do not modify or reformat the citations.
-#         - If a field cannot be extracted, use appropriate defaults (e.g., "Untitled" for title, [] for lists, "No summary available" for summary).
-#         - Ensure the response is valid JSON.
-#         Text (up to 45,000 characters):
-#         {prompt_text}
-#         """
-#         response_text = query_gemini(prompt, max_tokens=4000)
-#         print(f"Raw Gemini response: {response_text}")
-
-#         response_text = re.sub(r'^```json\n|\n```$', '', response_text).strip()
-
-#         try:
-#             result = json.loads(response_text)
-#         except json.JSONDecodeError as e:
-#             print(f"JSON parsing error: {str(e)}")
-#             return jsonify({"error": f"Failed to parse Gemini response as JSON: {str(e)}"}), 500
-
-#         analysis_data = {
-#             "title": result.get("title", "Untitled"),
-#             "authors": result.get("authors", ["No authors found"]),
-#             "summary": result.get("summary", "No summary available"),
-#             "keywords": result.get("keywords", []),
-#             "citations": result.get("citations", []),
-#             "session_id": session_id,
-#             "text": text  # Include the full extracted text
-#         }
-#         print(f"Extracted keywords: {analysis_data['keywords']}")
-#         print(f"Extracted citations: {analysis_data['citations']}")
-#         return jsonify(analysis_data)
-#     except Exception as e:
-#         print(f"Analyze PDF error: {str(e)}")
-#         return jsonify({"error": f"PDF analysis failed: {str(e)}"}), 500
-
-# @app.route("/api/summarize-section", methods=["POST"])
-# @jwt_required()
-# def summarize_section():
-#     data = request.get_json()
-#     section = data.get("section", "")
-#     session_id = data.get("session_id", "")
-#     word_limit = 150
-
-#     if not section:
-#         return jsonify({"error": "No section provided"}), 400
-#     if not session_id:
-#         return jsonify({"error": "Missing session ID"}), 400
-
-#     try:
-#         # Retrieve the analysis document from MongoDB
-#         email = get_jwt_identity()
-#         analysis = analyses_collection.find_one({"session_id": session_id, "email": email})
-#         if not analysis or not analysis.get("analysis_data", {}).get("text"):
-#             return jsonify({"error": "No PDF context available for this session ID."}), 400
-
-#         prompt_text = analysis["analysis_data"]["text"][:45000]
-#         print(f"Summarizing section: {section}, Context length: {len(prompt_text)} chars")
-
-#         prompt = f"""
-#         Analyze the following research paper text and provide a concise summary of the specified section in {word_limit} words.
-#         - Section to summarize: "{section}"
-#         - If the section is "Entire Paper", summarize the abstract and introduction (as in the default summary).
-#         - For other sections (e.g., "Introduction", "Literature Review", "Methodology", "Results", "Conclusion"), identify the section by its title or content (e.g., "Related Work" for "Literature Review", "Experiments" for "Results").
-#         - If the section is not found, return: "This section is not available in the paper."
-#         - Return the response as a JSON object:
-#         {{
-#             "section": "{section}",
-#             "summary": "string (summarize in {word_limit} words)"
-#         }}
-#         - Ensure the summary is concise, accurate, and based only on the provided text.
-#         - Ensure the response is valid JSON.
-#         Text (up to 45,000 characters):
-#         {prompt_text}
-#         """
-#         response_text = query_gemini(prompt, max_tokens=1000)
-#         print(f"Raw Gemini response for section {section}: {response_text}")
-
-#         response_text = re.sub(r'^```json\n|\n```$', '', response_text).strip()
-
-#         try:
-#             result = json.loads(response_text)
-#         except json.JSONDecodeError as e:
-#             print(f"JSON parsing error for section {section}: {str(e)}")
-#             return jsonify({"error": f"Failed to parse Gemini response as JSON: {str(e)}"}), 500
-
-#         response_data = {
-#             "section": result.get("section", section),
-#             "summary": result.get("summary", "This section is not available in the paper.")
-#         }
-#         print(f"Section summary for {section}: {response_data['summary'][:100]}...")
-
-#         # Update the analysis document with the new section summary
-#         analyses_collection.update_one(
-#             {"session_id": session_id, "email": email},
-#             {"$set": {f"analysis_data.sectionSummaries.{section}": response_data["summary"]}}
-#         )
-
-#         return jsonify(response_data)
-#     except Exception as e:
-#         print(f"Section summary error for {section}: {str(e)}")
-#         return jsonify({"error": f"Section summary failed: {str(e)}"}), 500
-
-# # @app.route("/api/extract-images", methods=["POST"])
-# # @jwt_required()
-# # def extract_images():
-# #     if "file" not in request.files:
-# #         return jsonify({"error": "No file provided"}), 400
-# #     file = request.files["file"]
-# #     if not file.filename.endswith(".pdf"):
-# #         return jsonify({"error": "Only PDF files are supported"}), 400
-
-# #     try:
-# #         visuals = []
-# #         with pdfplumber.open(file) as pdf:
-# #             for page_num, page in enumerate(pdf.pages, 1):
-# #                 try:
-# #                     # Get images from page.objects for reliability
-# #                     images = [obj for obj in page.objects.get('image', []) if isinstance(obj, dict) and 'stream' in obj]
-# #                     logger.info(f"Page {page_num}: Found {len(images)} image objects")
-# #                 except Exception as e:
-# #                     logger.error(f"Page {page_num}: Failed to access page objects: {str(e)}")
-# #                     continue
-
-# #                 for img_idx, img in enumerate(images):
-# #                     try:
-# #                         # Validate stream
-# #                         if not hasattr(img['stream'], 'get_data'):
-# #                             logger.warning(f"Page {page_num}, Image {img_idx}: No valid stream data")
-# #                             continue
-
-# #                         img_data = img['stream'].get_data()
-# #                         if not img_data or len(img_data) < 100:
-# #                             logger.warning(f"Page {page_num}, Image {img_idx}: Image data too small or empty")
-# #                             continue
-
-# #                         # Validate image type
-# #                         img_type = imghdr.what(None, img_data)
-# #                         if img_type not in ['jpeg', 'png']:
-# #                             logger.warning(f"Page {page_num}, Image {img_idx}: Unsupported image type {img_type or 'unknown'}")
-# #                             continue
-
-# #                         # Encode to Base64
-# #                         base64_data = base64.b64encode(img_data).decode("utf-8")
-# #                         if not base64_data:
-# #                             logger.warning(f"Page {page_num}, Image {img_idx}: Failed to encode image to Base64")
-# #                             continue
-
-# #                         # Analyze image with Gemini to classify type
-# #                         image_type = "unknown"
-# #                         try:
-# #                             prompt = """
-# #                             Analyze the provided image and classify it as one of the following types:
-# #                             - Flowchart: Diagrams with arrows and boxes showing a process or workflow.
-# #                             - Figure: General scientific illustrations (e.g., graphs, charts, diagrams).
-# #                             - Table: Grid-like structures with rows and columns.
-# #                             - Graph: Visualizations like line graphs, bar charts, or scatter plots.
-# #                             - Other: Any image that doesn't fit the above categories.
-# #                             Return only the type (e.g., "Flowchart", "Figure") as a single word.
-# #                             """
-# #                             image_data = {"type": img_type, "data": img_data}
-# #                             image_type = query_gemini(prompt, max_tokens=50, image_data=image_data)
-# #                             logger.info(f"Page {page_num}, Image {img_idx}: Gemini classified as {image_type}")
-# #                         except Exception as e:
-# #                             logger.warning(f"Page {page_num}, Image {img_idx}: Gemini classification failed: {str(e)}")
-# #                             image_type = "unknown"
-
-# #                         visuals.append({
-# #                             "name": f"image_page{page_num}_{img_idx}",
-# #                             "image": base64_data,
-# #                             "type": img_type,
-# #                             "image_type": image_type  # New field for Gemini classification
-# #                         })
-# #                         logger.info(f"Page {page_num}, Image {img_idx}: Successfully extracted {img_type} image, Base64 length: {len(base64_data)}, Classified as: {image_type}")
-# #                     except Exception as e:
-# #                         logger.error(f"Page {page_num}, Image {img_idx}: Extraction failed: {str(e)}")
-# #                         continue
-
-# #         logger.info(f"Total valid images extracted: {len(visuals)}")
-# #         return jsonify({"visuals": visuals})
-# #     except Exception as e:
-# #         logger.error(f"Image extraction error: {str(e)}")
-# #         return jsonify({"error": f"Image extraction failed: {str(e)}"}), 500
-
-# @app.route("/api/extract-tables", methods=["POST"])
-# @jwt_required()
-# def extract_tables():
-#     if "file" not in request.files:
-#         return jsonify({"error": "No file provided"}), 400
-#     file = request.files["file"]
-#     if not file.filename.endswith(".pdf"):
-#         return jsonify({"error": "Only PDF files are supported"}), 400
-
-#     try:
-#         tables = []
-#         with pdfplumber.open(file) as pdf:
-#             for page_num, page in enumerate(pdf.pages, 1):
-#                 page_text = page.extract_text() or ""
-#                 page_tables = page.extract_tables()
-#                 print(f"Page {page_num}: Found {len(page_tables)} tables")
-#                 for table_idx, table in enumerate(page_tables):
-#                     try:
-#                         cleaned_table = [[cell or "" for cell in row] for row in table if any(cell for cell in row)]
-#                         if not cleaned_table or len(cleaned_table) < 2:
-#                             print(f"Page {page_num}, Table {table_idx}: Skipped, empty or invalid")
-#                             continue
-
-#                         caption = "No caption available"
-#                         caption_match = re.search(r'(?i)Table\s+\d+\s*[:\.\-\s]*(.*?)(?=\n|$)', page_text, re.MULTILINE)
-#                         if caption_match:
-#                             caption = caption_match.group(0).strip()
-#                         else:
-#                             lines = page_text.split('\n')
-#                             for line in lines:
-#                                 if re.match(r'(?i)Table\s+\d+', line):
-#                                     caption = line.strip()
-#                                     break
-
-#                         tables.append({
-#                             "page": page_num,
-#                             "caption": caption,
-#                             "rows": cleaned_table
-#                         })
-#                         print(f"Page {page_num}, Table {table_idx}: Extracted, {len(cleaned_table)} rows, Caption: {caption}")
-#                     except Exception as e:
-#                         print(f"Page {page_num}, Table {table_idx}: Extraction failed: {str(e)}")
-#         print(f"Total tables extracted: {len(tables)}")
-#         return jsonify({"tables": tables})
-#     except Exception as e:
-#         print(f"Table extraction error: {str(e)}")
-#         return jsonify({"error": f"Table extraction failed: {str(e)}"}), 500
-
-# @app.route("/api/recommend", methods=["POST"])
-# @jwt_required()
-# def recommend():
-#     data = request.get_json()
-#     summary = data.get("summary", "")
-#     if not summary:
-#         return jsonify({"error": "No summary provided"}), 400
-
-#     try:
-#         # Construct prompt for Gemini to recommend 5 recent papers
-#         prompt = f"""
-#         Based on the following summary of a research paper, recommend exactly 5 recent research papers (published within the last 3 years, i.e., 2022 or later) from open-access repositories (e.g., arXiv, PubMed Central, or other public repositories). 
-#         The recommendations should be closely related to the topics, methods, or findings described in the summary, such as natural language processing, PDF analysis, recommendation systems, or related fields.
-#         Return the response as a JSON array of 5 objects, each with the following structure:
-#         {{
-#             "title": "string",
-#             "published": "string (YYYY-MM-DD format)",
-#             "arxiv_id": "string (or other identifier if not from arXiv)",
-#             "link": "string (URL to the paper)"
-#         }}
-#         - Ensure the papers are from open-access sources.
-#         - Prioritize recent papers (2022 or later) to ensure relevance and timeliness.
-#         - Provide accurate and relevant recommendations based on your knowledge.
-#         - If exact publication dates or IDs are unavailable, use reasonable estimates (e.g., "2023-01-01" for recent papers) and note any assumptions.
-#         - Ensure the response is valid JSON and contains exactly 5 recommendations.
-#         Summary:
-#         {summary[:1000]}  # Limit to 1000 characters to avoid exceeding token limits
-#         """
-#         response_text = query_gemini(prompt, max_tokens=1000)
-#         logger.info(f"Raw Gemini response for recommendations: {response_text}")
-
-#         # Clean up response by removing code fences
-#         response_text = re.sub(r'^```json\n|\n```$', '', response_text).strip()
-
-#         try:
-#             recommendations = json.loads(response_text)
-#         except json.JSONDecodeError as e:
-#             logger.error(f"JSON parsing error for recommendations: {str(e)}")
-#             return jsonify({"error": f"Failed to parse Gemini response as JSON: {str(e)}"}), 500
-
-#         # Validate that we have exactly 5 recommendations
-#         if not isinstance(recommendations, list) or len(recommendations) != 5:
-#             logger.error(f"Invalid number of recommendations: {len(recommendations)}")
-#             return jsonify({"error": "Failed to generate exactly 5 recommendations"}), 500
-
-#         # Validate the structure of each recommendation
-#         for rec in recommendations:
-#             if not all(key in rec for key in ["title", "published", "arxiv_id", "link"]):
-#                 logger.error(f"Invalid recommendation structure: {rec}")
-#                 return jsonify({"error": "Invalid recommendation structure"}), 500
-
-#         logger.info(f"Successfully generated 5 recommendations")
-#         return jsonify(recommendations)
-#     except Exception as e:
-#         logger.error(f"Recommendations error: {str(e)}")
-#         return jsonify({"error": f"Recommendations failed: {str(e)}"}), 500
-
-# @app.route("/api/chat", methods=["POST"])
-# @jwt_required()
-# def chat():
-#     data = request.get_json()
-#     user_message = data.get("message", "")
-#     session_id = data.get("session_id", "")
-#     if not user_message:
-#         return jsonify({"error": "No message provided"}), 400
-#     if not session_id:
-#         return jsonify({"error": "Missing session ID"}), 400
-
-#     try:
-#         email = get_jwt_identity()
-#         analysis = analyses_collection.find_one({"session_id": session_id, "email": email})
-#         if not analysis or not analysis.get("analysis_data", {}).get("text"):
-#             return jsonify({"error": "No PDF context available for this session ID."}), 400
-
-#         context = analysis["analysis_data"]["text"][:45000]
-#         chat_history = analysis.get("chat_history", [])
-#         logger.info(f"Chat history for session {session_id}: {chat_history}")
-#         history_prompt = "\n".join([f"User: {msg['user']}\nAssistant: {msg['assistant']}" for msg in chat_history[-3:]])
-
-#         prompt = f"""
-#         You are an assistant that answers questions strictly based on the content of a research paper provided as context. 
-#         Do not use external knowledge, make assumptions, or include information beyond the provided text.
-#         Search the entire context, including all sections (e.g., Abstract, Introduction, Literature Survey, System Architecture, etc.), to find relevant information.
-#         If the question cannot be answered based on the context, respond with "This information is not available in the paper."
-#         Provide concise and accurate answers, directly addressing the user's question.
-        
-#         Context (up to 45,000 characters):
-#         {context}
-        
-#         Recent conversation:
-#         {history_prompt}
-        
-#         User question: {user_message}
-        
-#         Answer:
-#         """
-#         print(f"Chat prompt length: {len(prompt)} chars, Context length: {len(context)} chars")
-#         response_text = query_gemini(prompt, max_tokens=500)
-
-#         chat_history.append({"user": user_message, "assistant": response_text})
-#         analyses_collection.update_one(
-#             {"session_id": session_id, "email": email},
-#             {"$set": {"chat_history": chat_history}},
-#             upsert=True
-#         )
-#         logger.info(f"Updated chat history for session {session_id}: {chat_history}")
-
-#         return jsonify({"response": response_text, "session_id": session_id})
-#     except Exception as e:
-#         logger.error(f"Chat error: {str(e)}")
-#         return jsonify({"error": f"Chat failed: {str(e)}"}), 500
-
-# @app.route("/api/paper-analysis", methods=["POST"])
-# @jwt_required()
-# def save_analysis():
-#     data = request.get_json()
-#     email = get_jwt_identity()
-#     analysis_data = data.get("analysis_data")
-#     if not analysis_data:
-#         return jsonify({"error": "Missing analysis data"}), 400
-
-#     try:
-#         analysis_doc = {
-#             "email": email,
-#             "session_id": analysis_data.get("session_id", str(time.time())),
-#             "analysis_data": analysis_data,
-#             "tables": analysis_data.get("tables", []),
-#             "figures": analysis_data.get("figures", []),
-#             "recommendations": analysis_data.get("recommendations", []),
-#             "chat_history": analysis_data.get("messages", []),
-#             "created_at": time.time()
-#         }
-#         logger.info(f"Saving analysis for {email}, chat_history: {analysis_doc['chat_history']}")
-#         result = analyses_collection.insert_one(analysis_doc)
-#         logger.info(f"Stored analysis for {email}: {result.inserted_id}")
-#         return jsonify({"message": "Analysis saved", "id": str(result.inserted_id)})
-#     except Exception as e:
-#         logger.error(f"Save analysis error: {str(e)}")
-#         return jsonify({"error": f"Failed to save analysis: {str(e)}"}), 500
-
-# @app.route("/api/paper-analysis/<analysis_id>", methods=["DELETE"])
-# @jwt_required()
-# def delete_analysis(analysis_id):
-#     email = get_jwt_identity()
-#     try:
-#         result = analyses_collection.delete_one({"_id": ObjectId(analysis_id), "email": email})
-#         if result.deleted_count == 1:
-#             logger.info(f"Deleted analysis {analysis_id} for {email}")
-#             return jsonify({"message": "Analysis deleted successfully"}), 200
-#         else:
-#             return jsonify({"error": "Analysis not found or unauthorized"}), 404
-#     except Exception as e:
-#         logger.error(f"Delete analysis error: {str(e)}")
-#         return jsonify({"error": f"Failed to delete analysis: {str(e)}"}), 500
-
-# @app.route("/api/user-data", methods=["GET"])
-# @jwt_required()
-# def user_data():
-#     email = get_jwt_identity()
-#     try:
-#         analyses = list(analyses_collection.find({"email": email}).sort("created_at", -1).limit(10))
-#         for analysis in analyses:
-#             analysis["_id"] = str(analysis["_id"])
-#         logger.info(f"Retrieved {len(analyses)} analyses for {email}")
-#         return jsonify({"recent_analysis": analyses})
-#     except Exception as e:
-#         logger.error(f"User data error: {str(e)}")
-#         return jsonify({"error": f"Failed to retrieve user data: {str(e)}"}), 500
-
-# if __name__ == "__main__":
-#     app.run(debug=True, host="0.0.0.0", port=5000)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -757,8 +96,11 @@ def handle_options(path):
     return '', 200
 
 # Initialize Gemini model
-MODEL_NAME = "gemini-1.5-pro"
+# MODEL_NAME = "gemini-1.5-pro"
+# model = genai.GenerativeModel(MODEL_NAME)
+MODEL_NAME = "gemini-2.0-flash-lite"
 model = genai.GenerativeModel(MODEL_NAME)
+
 
 # Initialize sentence transformer for semantic similarity
 sentence_model = SentenceTransformer('all-MiniLM-L6-v2')
@@ -843,6 +185,20 @@ def logout():
     unset_jwt_cookies(response)
     return response, 200
 
+# @app.route("/api/user-history", methods=["GET"])
+# @jwt_required()
+# def user_history():
+#     email = get_jwt_identity()
+#     try:
+#         analyses = list(analyses_collection.find({"email": email}).sort("created_at", -1).limit(10))
+#         for analysis in analyses:
+#             analysis["_id"] = str(analysis["_id"])
+#             logger.info(f"History item {analysis['_id']}: chat_history = {analysis.get('chat_history', [])}")
+#         return jsonify({"history": analyses}), 200
+#     except Exception as e:
+#         logger.error(f"User history error: {str(e)}")
+#         return jsonify({"error": f"Failed to retrieve user history: {str(e)}"}), 500
+
 @app.route("/api/user-history", methods=["GET"])
 @jwt_required()
 def user_history():
@@ -851,6 +207,10 @@ def user_history():
         analyses = list(analyses_collection.find({"email": email}).sort("created_at", -1).limit(10))
         for analysis in analyses:
             analysis["_id"] = str(analysis["_id"])
+            # Limit recommendations to 5 for display
+            if "recommendations" in analysis and len(analysis["recommendations"]) > 5:
+                analysis["recommendations"] = analysis["recommendations"][:5]
+                logger.info(f"Limited recommendations for analysis {analysis['_id']} to 5")
             logger.info(f"History item {analysis['_id']}: chat_history = {analysis.get('chat_history', [])}")
         return jsonify({"history": analyses}), 200
     except Exception as e:
@@ -1248,6 +608,34 @@ def chat():
         return jsonify({"error": f"Chat failed: {str(e)}"}), 500
 
 
+# @app.route("/api/paper-analysis", methods=["POST"])
+# @jwt_required()
+# def save_analysis():
+#     data = request.get_json()
+#     email = get_jwt_identity()
+#     analysis_data = data.get("analysis_data")
+#     if not analysis_data:
+#         return jsonify({"error": "Missing analysis data"}), 400
+
+#     try:
+#         analysis_doc = {
+#             "email": email,
+#             "session_id": analysis_data.get("session_id", str(time.time())),
+#             "analysis_data": analysis_data,
+#             "tables": analysis_data.get("tables", []),
+#             "figures": analysis_data.get("figures", []),
+#             "recommendations": analysis_data.get("recommendations", []),
+#             "chat_history": analysis_data.get("messages", []),
+#             "created_at": time.time()
+#         }
+#         logger.info(f"Saving analysis for {email}, chat_history: {analysis_doc['chat_history']}")
+#         result = analyses_collection.insert_one(analysis_doc)
+#         logger.info(f"Stored analysis for {email}: {result.inserted_id}")
+#         return jsonify({"message": "Analysis saved", "id": str(result.inserted_id)})
+#     except Exception as e:
+#         logger.error(f"Save analysis error: {str(e)}")
+#         return jsonify({"error": f"Failed to save analysis: {str(e)}"}), 500
+
 @app.route("/api/paper-analysis", methods=["POST"])
 @jwt_required()
 def save_analysis():
@@ -1258,17 +646,34 @@ def save_analysis():
         return jsonify({"error": "Missing analysis data"}), 400
 
     try:
+        # Limit recommendations to 5 unique entries
+        recommendations = analysis_data.get("recommendations", [])
+        logger.info(f"Initial recommendations count: {len(recommendations)}")
+        
+        # Deduplicate based on title and limit to 5
+        unique_recommendations = []
+        seen_titles = set()
+        for rec in recommendations:
+            title = rec.get("title", "")
+            if title and title not in seen_titles:
+                seen_titles.add(title)
+                unique_recommendations.append(rec)
+            if len(unique_recommendations) >= 5:
+                break
+
+        logger.info(f"After deduplication, recommendations count: {len(unique_recommendations)}")
+
         analysis_doc = {
             "email": email,
             "session_id": analysis_data.get("session_id", str(time.time())),
             "analysis_data": analysis_data,
             "tables": analysis_data.get("tables", []),
             "figures": analysis_data.get("figures", []),
-            "recommendations": analysis_data.get("recommendations", []),
+            "recommendations": unique_recommendations,  # Use deduplicated recommendations
             "chat_history": analysis_data.get("messages", []),
             "created_at": time.time()
         }
-        logger.info(f"Saving analysis for {email}, chat_history: {analysis_doc['chat_history']}")
+        logger.info(f"Saving analysis for {email}, recommendations: {len(unique_recommendations)}, chat_history: {analysis_doc['chat_history']}")
         result = analyses_collection.insert_one(analysis_doc)
         logger.info(f"Stored analysis for {email}: {result.inserted_id}")
         return jsonify({"message": "Analysis saved", "id": str(result.inserted_id)})
@@ -1754,3 +1159,17 @@ def convert_citations():
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
+
+
+
+
+
+
+
+
+
+
+
+
+
+

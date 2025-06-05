@@ -1,6 +1,4 @@
-
-
-// perfect
+// correct before addding loading 
 // import React, { useState, useEffect, useContext } from 'react';
 // import styled from 'styled-components';
 // import UploadButton from './UploadButton.jsx';
@@ -18,13 +16,14 @@
 // import { faArrowLeft, faArrowRight, faTrash } from '@fortawesome/free-solid-svg-icons';
 // import DownloadPDFBtn from './DownloadPDFBtn.jsx';
 // import DownloadPPTBtn from './DownloadPPTBtn.jsx';
+// import AccountCircleRoundedIcon from '@mui/icons-material/AccountCircleRounded';
 
 // const DashboardContainer = styled.div`
 //   max-width: ${({ $isSidebarOpen }) => ($isSidebarOpen ? "68%" : "90%")};
 //   margin-left: ${({ $isSidebarOpen }) => ($isSidebarOpen ? "350px" : "100px")};
 //   padding: 20px;
 //   transition: margin-left 0.3s;
-//   min-height: 100vh;
+//   min-height: 94vh;
 //   background-color: transparent;
 // `;
 
@@ -37,7 +36,7 @@
 //   width: ${props => (props.open ? '230px' : '0')};
 //   background-color: #2c2c2c;
 //   color: white;
-//   height: 100vh;
+//   height: 94vh;
 //   position: fixed;
 //   top: 0;
 //   left: 0;
@@ -45,22 +44,8 @@
 //   box-shadow: 2px 0 5px rgba(0, 0, 0, 0.5);
 //   transition: width 0.3s;
 //   overflow: hidden;
-//   overflow-y: auto;
-//   scrollbar-width: thin;
-//   scrollbar-color: #4a4a4a #2c2c2c;
-//   &::-webkit-scrollbar {
-//     width: 8px;
-//   }
-//   &::-webkit-scrollbar-track {
-//     background: #2c2c2c;
-//   }
-//   &::-webkit-scrollbar-thumb {
-//     background: #4a4a4a;
-//     border-radius: 4px;
-//   }
-//   &::-webkit-scrollbar-thumb:hover {
-//     background: #5a5a5a;
-//   }
+//   display: flex;
+//   flex-direction: column;
 // `;
 
 // const ToggleButton = styled.button`
@@ -79,11 +64,39 @@
 //   }
 // `;
 
-// const UserName = styled.h3`
+// const UserContainer = styled.div`
+//   display: flex;
+//   align-items: center;
+//   gap: 10px;
 //   margin: 0 0 15px 0;
+// `;
+
+// const UserName = styled.h3`
 //   font-size: 1.2em;
 //   text-align: left;
-//   color: #d2ff72;
+//   color: #ffffff;
+//   margin: 0;
+// `;
+
+// const HistoryContainer = styled.div`
+//   flex: 1;
+//   overflow-y: auto;
+//   margin-bottom: 20px;
+//   scrollbar-width: thin;
+//   scrollbar-color: #4a4a4a #2c2c2c;
+//   &::-webkit-scrollbar {
+//     width: 8px;
+//   }
+//   &::-webkit-scrollbar-track {
+//     background: #2c2c2c;
+//   }
+//   &::-webkit-scrollbar-thumb {
+//     background: #4a4a4a;
+//     border-radius: 4px;
+//   }
+//   &::-webkit-scrollbar-thumb:hover {
+//     background: #5a5a5a;
+//   }
 // `;
 
 // const HistoryItem = styled.div`
@@ -121,14 +134,14 @@
 // `;
 
 // const SignOutButton = styled.button`
-//   margin-top: 20px;
 //   width: 100%;
 //   background-color: #ff4444;
 //   color: white;
 //   border: none;
 //   padding: 10px;
-//   margin-bottom: 40px;
 //   cursor: pointer;
+//   position: sticky;
+//   bottom: 0;
 //   &:hover {
 //     background-color: #cc0000;
 //   }
@@ -140,39 +153,64 @@
 //   margin-top: 20px;
 // `;
 
-
 // const PleaseUploadText = styled.p`
-// font-size: 1.2rem;
-// font-weight: bold;
-// color: white;
-// text-align: center;
+//   font-size: 1.2rem;
+//   font-weight: bold;
+//   color: white;
+//   text-align: center;
 // `;
 
-// const SidebarC = ({ open, onSelectHistory, history, onDeleteHistory, onSignOut }) => {
+// const UploadContainer = styled.div`
+//   display: flex;
+//   flex-direction: column;
+//   align-items: center;
+//   justify-content: center;
+//   height: 300px;
+//   background-color: #2c2c2c;
+//   border: 1px solid #5f5f5f;
+//   border-radius: 8px;
+//   margin-top: 100px;
+//   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+// `;
+
+// const UploadDesc = styled.h2`
+//   color: white;
+//   text-align: center;
+//   font-size: xx-large;
+// `;
+
+// const SidebarC = ({ open, onSelectHistory, history, onDeleteHistory, onSignOut, handleUpload }) => {
 //   const { user } = useContext(AuthContext);
 //   const displayName = user?.name || user?.email || 'Unknown User';
 
 //   return (
 //     <SidebarContainer open={open}>
-//       <UserName>{displayName}</UserName>
+//       <UserContainer>
+//         <AccountCircleRoundedIcon style={{ color: '#ffffff', fontSize: '2em' }} />
+//         <UserName>{displayName}</UserName>
+//       </UserContainer>
+//       <UploadButton handleUpload={handleUpload} />
 //       <h3>History</h3>
-//       <div>
-//         {Array.isArray(history) && history.map((item, index) => (
-//           <HistoryItem key={item._id || index} onClick={() => onSelectHistory(item)}>
-//             {item.analysis_data?.title || `Paper ${index + 1}`}
-//             <DeleteButton onClick={(e) => { e.stopPropagation(); onDeleteHistory(item._id); }}>
-//               <FontAwesomeIcon icon={faTrash} />
-//             </DeleteButton>
-//           </HistoryItem>
-//         ))}
-//       </div>
+//       <HistoryContainer>
+//         {Array.isArray(history) && history.length > 0 ? (
+//           history.map((item, index) => (
+//             <HistoryItem key={item._id || index} onClick={() => onSelectHistory(item)}>
+//               {item.analysis_data?.title || `Paper ${index + 1}`}
+//               <DeleteButton onClick={(e) => { e.stopPropagation(); onDeleteHistory(item._id); }}>
+//                 <FontAwesomeIcon icon={faTrash} />
+//               </DeleteButton>
+//             </HistoryItem>
+//           ))
+//         ) : (
+//           <p style={{ color: '#aaaaaa', fontSize: '13px' }}>No history available</p>
+//         )}
+//       </HistoryContainer>
 //       <SignOutButton onClick={onSignOut}>
 //         Sign Out
 //       </SignOutButton>
 //     </SidebarContainer>
 //   );
 // };
-
 
 // const Dashboard = () => {
 //   const navigate = useNavigate();
@@ -222,7 +260,6 @@
 //       const formData = new FormData();
 //       formData.append('file', file);
 
-//       // Fetch analysis and tables only
 //       const [analysisResponse, tablesResponse] = await Promise.all([
 //         fetch('http://localhost:5000/api/analyze-pdf', {
 //           method: 'POST',
@@ -402,12 +439,17 @@
 //         history={history}
 //         onDeleteHistory={handleDeleteHistory}
 //         onSignOut={handleSignOut}
+//         handleUpload={handleUpload}
 //       />
 //       <DashboardContainer $isSidebarOpen={sidebarOpen}>
-//         <UploadButton handleUpload={handleUpload} />
+//         {!analysisData && !loading && 
+//         <UploadContainer>
+//           <UploadDesc>Upload Your Research Paper <br></br>& Unlock Powerful Insights Instantly!</UploadDesc>
+//           <UploadButton handleUpload={handleUpload} />
+//           </UploadContainer>}
 //         {loading && <p>Loading...</p>}
 //         {error && <ErrorMessage>{error}</ErrorMessage>}
-//         {!analysisData && !loading && <PleaseUploadText>Please upload a PDF or select a history item.</PleaseUploadText>}
+//         {!analysisData && !loading }
 //         {analysisData && !loading && (
 //           <div>
 //             <PaperTitle title={analysisData.title || 'Untitled'} />
@@ -443,29 +485,8 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import React, { useState, useEffect, useContext } from 'react';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 import UploadButton from './UploadButton.jsx';
 import PaperTitle from './PaperTitle.jsx';
 import Author from './Author.jsx';
@@ -483,13 +504,18 @@ import DownloadPDFBtn from './DownloadPDFBtn.jsx';
 import DownloadPPTBtn from './DownloadPPTBtn.jsx';
 import AccountCircleRoundedIcon from '@mui/icons-material/AccountCircleRounded';
 
+// Define the spinning animation
+const spin = keyframes`
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+`;
 
 const DashboardContainer = styled.div`
   max-width: ${({ $isSidebarOpen }) => ($isSidebarOpen ? "68%" : "90%")};
   margin-left: ${({ $isSidebarOpen }) => ($isSidebarOpen ? "350px" : "100px")};
   padding: 20px;
   transition: margin-left 0.3s;
-  min-height: 100vh;
+  min-height: 94vh;
   background-color: transparent;
 `;
 
@@ -502,7 +528,7 @@ const SidebarContainer = styled.div`
   width: ${props => (props.open ? '230px' : '0')};
   background-color: #2c2c2c;
   color: white;
-  height: 100vh;
+  height: 94vh;
   position: fixed;
   top: 0;
   left: 0;
@@ -510,22 +536,8 @@ const SidebarContainer = styled.div`
   box-shadow: 2px 0 5px rgba(0, 0, 0, 0.5);
   transition: width 0.3s;
   overflow: hidden;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: #4a4a4a #2c2c2c;
-  &::-webkit-scrollbar {
-    width: 8px;
-  }
-  &::-webkit-scrollbar-track {
-    background: #2c2c2c;
-  }
-  &::-webkit-scrollbar-thumb {
-    background: #4a4a4a;
-    border-radius: 4px;
-  }
-  &::-webkit-scrollbar-thumb:hover {
-    background: #5a5a5a;
-  }
+  display: flex;
+  flex-direction: column;
 `;
 
 const ToggleButton = styled.button`
@@ -547,7 +559,7 @@ const ToggleButton = styled.button`
 const UserContainer = styled.div`
   display: flex;
   align-items: center;
-  gap: 10px; /* Space between icon and username */
+  gap: 10px;
   margin: 0 0 15px 0;
 `;
 
@@ -555,7 +567,28 @@ const UserName = styled.h3`
   font-size: 1.2em;
   text-align: left;
   color: #ffffff;
-  margin: 0; /* Remove default margin to align with icon */
+  margin: 0;
+`;
+
+const HistoryContainer = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 20px;
+  scrollbar-width: thin;
+  scrollbar-color: #4a4a4a #2c2c2c;
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  &::-webkit-scrollbar-track {
+    background: #2c2c2c;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: #4a4a4a;
+    border-radius: 4px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: #5a5a5a;
+  }
 `;
 
 const HistoryItem = styled.div`
@@ -593,14 +626,14 @@ const DeleteButton = styled.button`
 `;
 
 const SignOutButton = styled.button`
-  margin-top: 20px;
   width: 100%;
   background-color: #ff4444;
   color: white;
   border: none;
   padding: 10px;
-  margin-bottom: 40px;
   cursor: pointer;
+  position: sticky;
+  bottom: 0;
   &:hover {
     background-color: #cc0000;
   }
@@ -612,14 +645,6 @@ const DownloadButtonsContainer = styled.div`
   margin-top: 20px;
 `;
 
-const PleaseUploadText = styled.p`
-  font-size: 1.2rem;
-  font-weight: bold;
-  color: white;
-  text-align: center;
-`;
-
-
 const UploadContainer = styled.div`
   display: flex;
   flex-direction: column;
@@ -630,19 +655,70 @@ const UploadContainer = styled.div`
   border: 1px solid #5f5f5f;
   border-radius: 8px;
   margin-top: 100px;
-  /* padding: 20px; */
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 `;
 
-const UploadDesc= styled.h2`
+const UploadDesc = styled.h2`
   color: white;
   text-align: center;
   font-size: xx-large;
 `;
 
+const LoadingContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  margin-top: 100px;
+`;
+
+const Spinner = styled.div`
+  border: 6px solid #f3f3f3;
+  border-top: 6px solid #d2ff72;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  animation: ${spin} 1s linear infinite;
+  margin-bottom: 20px;
+`;
+
+const LoadingText = styled.p`
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: white;
+  text-align: center;
+`;
+
+// New Search Bar Styling
+const SearchBar = styled.input`
+  width: 90%;
+  padding: 8px;
+  margin-bottom: 10px;
+  border: 1px solid #5f5f5f;
+  border-radius: 5px;
+  background-color: #3a3a3a;
+  color: white;
+  font-size: 13px;
+  &::placeholder {
+    color: #aaaaaa;
+  }
+  &:focus {
+    outline: none;
+    border-color: #d2ff72;
+  }
+`;
+
 const SidebarC = ({ open, onSelectHistory, history, onDeleteHistory, onSignOut, handleUpload }) => {
   const { user } = useContext(AuthContext);
   const displayName = user?.name || user?.email || 'Unknown User';
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Filter history based on search query
+  const filteredHistory = Array.isArray(history) ? history.filter(item => {
+    const title = item.analysis_data?.title || `Paper ${history.indexOf(item) + 1}`;
+    return title.toLowerCase().includes(searchQuery.toLowerCase());
+  }) : [];
 
   return (
     <SidebarContainer open={open}>
@@ -652,16 +728,28 @@ const SidebarC = ({ open, onSelectHistory, history, onDeleteHistory, onSignOut, 
       </UserContainer>
       <UploadButton handleUpload={handleUpload} />
       <h3>History</h3>
-      <div>
-        {Array.isArray(history) && history.map((item, index) => (
-          <HistoryItem key={item._id || index} onClick={() => onSelectHistory(item)}>
-            {item.analysis_data?.title || `Paper ${index + 1}`}
-            <DeleteButton onClick={(e) => { e.stopPropagation(); onDeleteHistory(item._id); }}>
-              <FontAwesomeIcon icon={faTrash} />
-            </DeleteButton>
-          </HistoryItem>
-        ))}
-      </div>
+      <SearchBar
+        type="text"
+        placeholder="Search history..."
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+      />
+      <HistoryContainer>
+        {filteredHistory.length > 0 ? (
+          filteredHistory.map((item, index) => (
+            <HistoryItem key={item._id || index} onClick={() => onSelectHistory(item)}>
+              {item.analysis_data?.title || `Paper ${index + 1}`}
+              <DeleteButton onClick={(e) => { e.stopPropagation(); onDeleteHistory(item._id); }}>
+                <FontAwesomeIcon icon={faTrash} />
+              </DeleteButton>
+            </HistoryItem>
+          ))
+        ) : (
+          <p style={{ color: '#aaaaaa', fontSize: '13px' }}>
+            {searchQuery ? 'No matching history items' : 'No history available'}
+          </p>
+        )}
+      </HistoryContainer>
       <SignOutButton onClick={onSignOut}>
         Sign Out
       </SignOutButton>
@@ -702,124 +790,138 @@ const Dashboard = () => {
   }, [token, navigate]);
 
   const handleUpload = async (file) => {
-    setLoading(true);
-    setError('');
-    setAnalysisData(null);
+  setLoading(true);
+  setError('');
+  setAnalysisData(null);
 
-    if (!token) {
-      setError('No authentication token found. Please log in.');
-      setLoading(false);
-      navigate('/');
-      return;
+  if (!token) {
+    setError('No authentication token found. Please log in.');
+    setLoading(false);
+    navigate('/');
+    return;
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const [analysisResponse, tablesResponse] = await Promise.all([
+      fetch('http://localhost:5000/api/analyze-pdf', {
+        method: 'POST',
+        body: formData,
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(err => ({ ok: false, error: `Analysis fetch failed: ${err.message}` })),
+      fetch('http://localhost:5000/api/extract-tables', {
+        method: 'POST',
+        body: formData,
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(err => ({ ok: false, error: `Tables fetch failed: ${err.message}` })),
+    ]);
+
+    const errors = [];
+    const data = {
+      title: "Untitled",
+      authors: ["No authors found"],
+      summary: "No summary available",
+      keywords: [],
+      citations: [],
+      tables: [],
+      recommendations: [],
+      sectionSummaries: {},
+      messages: [],
+      text: "",
+      session_id: null,
+    };
+
+    if (analysisResponse.ok) {
+      const analysisData = await analysisResponse.json();
+      console.log('Received session_id from backend:', analysisData.session_id);
+      Object.assign(data, analysisData);
+    } else {
+      const errorData = await analysisResponse.json().catch(() => ({ error: 'Unknown analysis error' }));
+      errors.push(analysisResponse.error || errorData.error);
+    }
+
+    if (tablesResponse.ok) {
+      const tablesData = await tablesResponse.json();
+      data.tables = tablesData.tables || [];
+    } else {
+      const errorData = await tablesResponse.json().catch(() => ({ error: 'Unknown tables error' }));
+      errors.push(tablesResponse.error || errorData.error);
+    }
+
+    // Fetch recommendations only if keywords or summary exist and recommendations are not already fetched
+    if ((data.keywords.length > 0 || data.summary) && data.recommendations.length === 0) {
+      try {
+        const recommendationsResponse = await fetch('http://localhost:5000/api/recommend', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ keywords: data.keywords, summary: data.summary }),
+        });
+        if (recommendationsResponse.ok) {
+          const recommendations = await recommendationsResponse.json();
+          // Deduplicate and limit to 5 recommendations
+          const uniqueRecommendations = [];
+          const seenTitles = new Set();
+          for (const rec of recommendations) {
+            const title = rec.title || '';
+            if (!seenTitles.has(title)) {
+              seenTitles.add(title);
+              uniqueRecommendations.push(rec);
+            }
+            if (uniqueRecommendations.length >= 5) break;
+          }
+          data.recommendations = uniqueRecommendations;
+          console.log('Fetched and deduplicated recommendations:', data.recommendations);
+        } else {
+          const errorData = await recommendationsResponse.json().catch(() => ({ error: 'Unknown recommendations error' }));
+          errors.push(errorData.error);
+        }
+      } catch (err) {
+        errors.push(`Recommendations error: ${err.message}`);
+      }
     }
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const [analysisResponse, tablesResponse] = await Promise.all([
-        fetch('http://localhost:5000/api/analyze-pdf', {
-          method: 'POST',
-          body: formData,
-          headers: { Authorization: `Bearer ${token}` },
-        }).catch(err => ({ ok: false, error: `Analysis fetch failed: ${err.message}` })),
-        fetch('http://localhost:5000/api/extract-tables', {
-          method: 'POST',
-          body: formData,
-          headers: { Authorization: `Bearer ${token}` },
-        }).catch(err => ({ ok: false, error: `Tables fetch failed: ${err.message}` })),
-      ]);
-
-      const errors = [];
-      const data = {
-        title: "Untitled",
-        authors: ["No authors found"],
-        summary: "No summary available",
-        keywords: [],
-        citations: [],
-        tables: [],
-        recommendations: [],
-        sectionSummaries: {},
-        messages: [],
-        text: "",
-        session_id: null,
-      };
-
-      if (analysisResponse.ok) {
-        const analysisData = await analysisResponse.json();
-        console.log('Received session_id from backend:', analysisData.session_id);
-        Object.assign(data, analysisData);
-      } else {
-        const errorData = await analysisResponse.json().catch(() => ({ error: 'Unknown analysis error' }));
-        errors.push(analysisResponse.error || errorData.error);
-      }
-
-      if (tablesResponse.ok) {
-        const tablesData = await tablesResponse.json();
-        data.tables = tablesData.tables || [];
-      } else {
-        const errorData = await tablesResponse.json().catch(() => ({ error: 'Unknown tables error' }));
-        errors.push(tablesResponse.error || errorData.error);
-      }
-
-      if (data.keywords.length > 0 || data.summary) {
-        try {
-          const recommendationsResponse = await fetch('http://localhost:5000/api/recommend', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ keywords: data.keywords, summary: data.summary }),
-          });
-          if (recommendationsResponse.ok) {
-            data.recommendations = await recommendationsResponse.json();
-          } else {
-            const errorData = await recommendationsResponse.json().catch(() => ({ error: 'Unknown recommendations error' }));
-            errors.push(errorData.error);
-          }
-        } catch (err) {
-          errors.push(`Recommendations error: ${err.message}`);
-        }
-      }
-
-      try {
-        const saveResponse = await fetch('http://localhost:5000/api/paper-analysis', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ analysis_data: data }),
-        });
-        if (!saveResponse.ok) {
-          const errorData = await saveResponse.json().catch(() => ({ error: 'Unknown save error' }));
-          errors.push(`Save Analysis: ${errorData.error}`);
-        }
-      } catch (err) {
-        errors.push(`Save error: ${err.message}`);
-      }
-
-      setAnalysisData(data);
-      console.log('Final analysis data set:', data);
-
-      try {
-        const historyResponse = await fetch('http://localhost:5000/api/user-history', {
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
-        if (historyResponse.ok) {
-          const historyData = await historyResponse.json();
-          setHistory(historyData.history || []);
-        }
-      } catch (err) {
-        console.error('Error updating history after analysis:', err);
-      }
-
-      if (errors.length > 0) {
-        setError(`Partial errors occurred: ${errors.join('; ')}`);
-        console.error('API errors:', errors);
+      const saveResponse = await fetch('http://localhost:5000/api/paper-analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ analysis_data: data }),
+      });
+      if (!saveResponse.ok) {
+        const errorData = await saveResponse.json().catch(() => ({ error: 'Unknown save error' }));
+        errors.push(`Save Analysis: ${errorData.error}`);
       }
     } catch (err) {
-      setError('Error processing PDF: ' + err.message);
-      console.error('Upload error:', err);
-    } finally {
-      setLoading(false);
+      errors.push(`Save error: ${err.message}`);
     }
-  };
+
+    setAnalysisData(data);
+    console.log('Final analysis data set:', data);
+
+    try {
+      const historyResponse = await fetch('http://localhost:5000/api/user-history', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (historyResponse.ok) {
+        const historyData = await historyResponse.json();
+        setHistory(historyData.history || []);
+      }
+    } catch (err) {
+      console.error('Error updating history after analysis:', err);
+    }
+
+    if (errors.length > 0) {
+      setError(`Partial errors occurred: ${errors.join('; ')}`);
+      console.error('API errors:', errors);
+    }
+  } catch (err) {
+    setError('Error processing PDF: ' + err.message);
+    console.error('Upload error:', err);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleHistorySelect = (item) => {
     const selectedData = item.analysis_data || {};
@@ -904,7 +1006,12 @@ const Dashboard = () => {
           <UploadDesc>Upload Your Research Paper <br></br>& Unlock Powerful Insights Instantly!</UploadDesc>
           <UploadButton handleUpload={handleUpload} />
           </UploadContainer>}
-        {loading && <p>Loading...</p>}
+        {loading && (
+          <LoadingContainer>
+            <Spinner />
+            <LoadingText>Analyzing your PDF...</LoadingText>
+          </LoadingContainer>
+        )}
         {error && <ErrorMessage>{error}</ErrorMessage>}
         {!analysisData && !loading }
         {analysisData && !loading && (
