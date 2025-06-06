@@ -1,6 +1,9 @@
-// correct before addding loading 
+
+
+
+
 // import React, { useState, useEffect, useContext } from 'react';
-// import styled from 'styled-components';
+// import styled, { keyframes } from 'styled-components';
 // import UploadButton from './UploadButton.jsx';
 // import PaperTitle from './PaperTitle.jsx';
 // import Author from './Author.jsx';
@@ -17,6 +20,12 @@
 // import DownloadPDFBtn from './DownloadPDFBtn.jsx';
 // import DownloadPPTBtn from './DownloadPPTBtn.jsx';
 // import AccountCircleRoundedIcon from '@mui/icons-material/AccountCircleRounded';
+
+// // Define the spinning animation
+// const spin = keyframes`
+//   0% { transform: rotate(0deg); }
+//   100% { transform: rotate(360deg); }
+// `;
 
 // const DashboardContainer = styled.div`
 //   max-width: ${({ $isSidebarOpen }) => ($isSidebarOpen ? "68%" : "90%")};
@@ -153,13 +162,6 @@
 //   margin-top: 20px;
 // `;
 
-// const PleaseUploadText = styled.p`
-//   font-size: 1.2rem;
-//   font-weight: bold;
-//   color: white;
-//   text-align: center;
-// `;
-
 // const UploadContainer = styled.div`
 //   display: flex;
 //   flex-direction: column;
@@ -179,9 +181,61 @@
 //   font-size: xx-large;
 // `;
 
+// const LoadingContainer = styled.div`
+//   display: flex;
+//   flex-direction: column;
+//   align-items: center;
+//   justify-content: center;
+//   height: 300px;
+//   margin-top: 100px;
+// `;
+
+// const Spinner = styled.div`
+//   border: 6px solid #f3f3f3;
+//   border-top: 6px solid #d2ff72;
+//   border-radius: 50%;
+//   width: 50px;
+//   height: 50px;
+//   animation: ${spin} 1s linear infinite;
+//   margin-bottom: 20px;
+// `;
+
+// const LoadingText = styled.p`
+//   font-size: 1.2rem;
+//   font-weight: bold;
+//   color: white;
+//   text-align: center;
+// `;
+
+// // New Search Bar Styling
+// const SearchBar = styled.input`
+//   width: 90%;
+//   padding: 8px;
+//   margin-bottom: 10px;
+//   border: 1px solid #5f5f5f;
+//   border-radius: 5px;
+//   background-color: #3a3a3a;
+//   color: white;
+//   font-size: 13px;
+//   &::placeholder {
+//     color: #aaaaaa;
+//   }
+//   &:focus {
+//     outline: none;
+//     border-color: #d2ff72;
+//   }
+// `;
+
 // const SidebarC = ({ open, onSelectHistory, history, onDeleteHistory, onSignOut, handleUpload }) => {
 //   const { user } = useContext(AuthContext);
 //   const displayName = user?.name || user?.email || 'Unknown User';
+//   const [searchQuery, setSearchQuery] = useState('');
+
+//   // Filter history based on search query
+//   const filteredHistory = Array.isArray(history) ? history.filter(item => {
+//     const title = item.analysis_data?.title || `Paper ${history.indexOf(item) + 1}`;
+//     return title.toLowerCase().includes(searchQuery.toLowerCase());
+//   }) : [];
 
 //   return (
 //     <SidebarContainer open={open}>
@@ -191,9 +245,15 @@
 //       </UserContainer>
 //       <UploadButton handleUpload={handleUpload} />
 //       <h3>History</h3>
+//       <SearchBar
+//         type="text"
+//         placeholder="Search history..."
+//         value={searchQuery}
+//         onChange={(e) => setSearchQuery(e.target.value)}
+//       />
 //       <HistoryContainer>
-//         {Array.isArray(history) && history.length > 0 ? (
-//           history.map((item, index) => (
+//         {filteredHistory.length > 0 ? (
+//           filteredHistory.map((item, index) => (
 //             <HistoryItem key={item._id || index} onClick={() => onSelectHistory(item)}>
 //               {item.analysis_data?.title || `Paper ${index + 1}`}
 //               <DeleteButton onClick={(e) => { e.stopPropagation(); onDeleteHistory(item._id); }}>
@@ -202,7 +262,9 @@
 //             </HistoryItem>
 //           ))
 //         ) : (
-//           <p style={{ color: '#aaaaaa', fontSize: '13px' }}>No history available</p>
+//           <p style={{ color: '#aaaaaa', fontSize: '13px' }}>
+//             {searchQuery ? 'No matching history items' : 'No history available'}
+//           </p>
 //         )}
 //       </HistoryContainer>
 //       <SignOutButton onClick={onSignOut}>
@@ -245,124 +307,138 @@
 //   }, [token, navigate]);
 
 //   const handleUpload = async (file) => {
-//     setLoading(true);
-//     setError('');
-//     setAnalysisData(null);
+//   setLoading(true);
+//   setError('');
+//   setAnalysisData(null);
 
-//     if (!token) {
-//       setError('No authentication token found. Please log in.');
-//       setLoading(false);
-//       navigate('/');
-//       return;
+//   if (!token) {
+//     setError('No authentication token found. Please log in.');
+//     setLoading(false);
+//     navigate('/');
+//     return;
+//   }
+
+//   try {
+//     const formData = new FormData();
+//     formData.append('file', file);
+
+//     const [analysisResponse, tablesResponse] = await Promise.all([
+//       fetch('http://localhost:5000/api/analyze-pdf', {
+//         method: 'POST',
+//         body: formData,
+//         headers: { Authorization: `Bearer ${token}` },
+//       }).catch(err => ({ ok: false, error: `Analysis fetch failed: ${err.message}` })),
+//       fetch('http://localhost:5000/api/extract-tables', {
+//         method: 'POST',
+//         body: formData,
+//         headers: { Authorization: `Bearer ${token}` },
+//       }).catch(err => ({ ok: false, error: `Tables fetch failed: ${err.message}` })),
+//     ]);
+
+//     const errors = [];
+//     const data = {
+//       title: "Untitled",
+//       authors: ["No authors found"],
+//       summary: "No summary available",
+//       keywords: [],
+//       citations: [],
+//       tables: [],
+//       recommendations: [],
+//       sectionSummaries: {},
+//       messages: [],
+//       text: "",
+//       session_id: null,
+//     };
+
+//     if (analysisResponse.ok) {
+//       const analysisData = await analysisResponse.json();
+//       console.log('Received session_id from backend:', analysisData.session_id);
+//       Object.assign(data, analysisData);
+//     } else {
+//       const errorData = await analysisResponse.json().catch(() => ({ error: 'Unknown analysis error' }));
+//       errors.push(analysisResponse.error || errorData.error);
+//     }
+
+//     if (tablesResponse.ok) {
+//       const tablesData = await tablesResponse.json();
+//       data.tables = tablesData.tables || [];
+//     } else {
+//       const errorData = await tablesResponse.json().catch(() => ({ error: 'Unknown tables error' }));
+//       errors.push(tablesResponse.error || errorData.error);
+//     }
+
+//     // Fetch recommendations only if keywords or summary exist and recommendations are not already fetched
+//     if ((data.keywords.length > 0 || data.summary) && data.recommendations.length === 0) {
+//       try {
+//         const recommendationsResponse = await fetch('http://localhost:5000/api/recommend', {
+//           method: 'POST',
+//           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+//           body: JSON.stringify({ keywords: data.keywords, summary: data.summary }),
+//         });
+//         if (recommendationsResponse.ok) {
+//           const recommendations = await recommendationsResponse.json();
+//           // Deduplicate and limit to 5 recommendations
+//           const uniqueRecommendations = [];
+//           const seenTitles = new Set();
+//           for (const rec of recommendations) {
+//             const title = rec.title || '';
+//             if (!seenTitles.has(title)) {
+//               seenTitles.add(title);
+//               uniqueRecommendations.push(rec);
+//             }
+//             if (uniqueRecommendations.length >= 5) break;
+//           }
+//           data.recommendations = uniqueRecommendations;
+//           console.log('Fetched and deduplicated recommendations:', data.recommendations);
+//         } else {
+//           const errorData = await recommendationsResponse.json().catch(() => ({ error: 'Unknown recommendations error' }));
+//           errors.push(errorData.error);
+//         }
+//       } catch (err) {
+//         errors.push(`Recommendations error: ${err.message}`);
+//       }
 //     }
 
 //     try {
-//       const formData = new FormData();
-//       formData.append('file', file);
-
-//       const [analysisResponse, tablesResponse] = await Promise.all([
-//         fetch('http://localhost:5000/api/analyze-pdf', {
-//           method: 'POST',
-//           body: formData,
-//           headers: { Authorization: `Bearer ${token}` },
-//         }).catch(err => ({ ok: false, error: `Analysis fetch failed: ${err.message}` })),
-//         fetch('http://localhost:5000/api/extract-tables', {
-//           method: 'POST',
-//           body: formData,
-//           headers: { Authorization: `Bearer ${token}` },
-//         }).catch(err => ({ ok: false, error: `Tables fetch failed: ${err.message}` })),
-//       ]);
-
-//       const errors = [];
-//       const data = {
-//         title: "Untitled",
-//         authors: ["No authors found"],
-//         summary: "No summary available",
-//         keywords: [],
-//         citations: [],
-//         tables: [],
-//         recommendations: [],
-//         sectionSummaries: {},
-//         messages: [],
-//         text: "",
-//         session_id: null,
-//       };
-
-//       if (analysisResponse.ok) {
-//         const analysisData = await analysisResponse.json();
-//         console.log('Received session_id from backend:', analysisData.session_id);
-//         Object.assign(data, analysisData);
-//       } else {
-//         const errorData = await analysisResponse.json().catch(() => ({ error: 'Unknown analysis error' }));
-//         errors.push(analysisResponse.error || errorData.error);
-//       }
-
-//       if (tablesResponse.ok) {
-//         const tablesData = await tablesResponse.json();
-//         data.tables = tablesData.tables || [];
-//       } else {
-//         const errorData = await tablesResponse.json().catch(() => ({ error: 'Unknown tables error' }));
-//         errors.push(tablesResponse.error || errorData.error);
-//       }
-
-//       if (data.keywords.length > 0 || data.summary) {
-//         try {
-//           const recommendationsResponse = await fetch('http://localhost:5000/api/recommend', {
-//             method: 'POST',
-//             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-//             body: JSON.stringify({ keywords: data.keywords, summary: data.summary }),
-//           });
-//           if (recommendationsResponse.ok) {
-//             data.recommendations = await recommendationsResponse.json();
-//           } else {
-//             const errorData = await recommendationsResponse.json().catch(() => ({ error: 'Unknown recommendations error' }));
-//             errors.push(errorData.error);
-//           }
-//         } catch (err) {
-//           errors.push(`Recommendations error: ${err.message}`);
-//         }
-//       }
-
-//       try {
-//         const saveResponse = await fetch('http://localhost:5000/api/paper-analysis', {
-//           method: 'POST',
-//           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-//           body: JSON.stringify({ analysis_data: data }),
-//         });
-//         if (!saveResponse.ok) {
-//           const errorData = await saveResponse.json().catch(() => ({ error: 'Unknown save error' }));
-//           errors.push(`Save Analysis: ${errorData.error}`);
-//         }
-//       } catch (err) {
-//         errors.push(`Save error: ${err.message}`);
-//       }
-
-//       setAnalysisData(data);
-//       console.log('Final analysis data set:', data);
-
-//       try {
-//         const historyResponse = await fetch('http://localhost:5000/api/user-history', {
-//           headers: { 'Authorization': `Bearer ${token}` },
-//         });
-//         if (historyResponse.ok) {
-//           const historyData = await historyResponse.json();
-//           setHistory(historyData.history || []);
-//         }
-//       } catch (err) {
-//         console.error('Error updating history after analysis:', err);
-//       }
-
-//       if (errors.length > 0) {
-//         setError(`Partial errors occurred: ${errors.join('; ')}`);
-//         console.error('API errors:', errors);
+//       const saveResponse = await fetch('http://localhost:5000/api/paper-analysis', {
+//         method: 'POST',
+//         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+//         body: JSON.stringify({ analysis_data: data }),
+//       });
+//       if (!saveResponse.ok) {
+//         const errorData = await saveResponse.json().catch(() => ({ error: 'Unknown save error' }));
+//         errors.push(`Save Analysis: ${errorData.error}`);
 //       }
 //     } catch (err) {
-//       setError('Error processing PDF: ' + err.message);
-//       console.error('Upload error:', err);
-//     } finally {
-//       setLoading(false);
+//       errors.push(`Save error: ${err.message}`);
 //     }
-//   };
+
+//     setAnalysisData(data);
+//     console.log('Final analysis data set:', data);
+
+//     try {
+//       const historyResponse = await fetch('http://localhost:5000/api/user-history', {
+//         headers: { 'Authorization': `Bearer ${token}` },
+//       });
+//       if (historyResponse.ok) {
+//         const historyData = await historyResponse.json();
+//         setHistory(historyData.history || []);
+//       }
+//     } catch (err) {
+//       console.error('Error updating history after analysis:', err);
+//     }
+
+//     if (errors.length > 0) {
+//       setError(`Partial errors occurred: ${errors.join('; ')}`);
+//       console.error('API errors:', errors);
+//     }
+//   } catch (err) {
+//     setError('Error processing PDF: ' + err.message);
+//     console.error('Upload error:', err);
+//   } finally {
+//     setLoading(false);
+//   }
+// };
 
 //   const handleHistorySelect = (item) => {
 //     const selectedData = item.analysis_data || {};
@@ -447,7 +523,12 @@
 //           <UploadDesc>Upload Your Research Paper <br></br>& Unlock Powerful Insights Instantly!</UploadDesc>
 //           <UploadButton handleUpload={handleUpload} />
 //           </UploadContainer>}
-//         {loading && <p>Loading...</p>}
+//         {loading && (
+//           <LoadingContainer>
+//             <Spinner />
+//             <LoadingText>Analyzing your PDF...</LoadingText>
+//           </LoadingContainer>
+//         )}
 //         {error && <ErrorMessage>{error}</ErrorMessage>}
 //         {!analysisData && !loading }
 //         {analysisData && !loading && (
@@ -485,6 +566,16 @@
 
 
 
+
+
+
+
+
+
+
+
+
+/* trying images */
 import React, { useState, useEffect, useContext } from 'react';
 import styled, { keyframes } from 'styled-components';
 import UploadButton from './UploadButton.jsx';
@@ -495,6 +586,7 @@ import Keywords from './Keywords.jsx';
 import TablesExtracted from './TablesExtracted.jsx';
 import Citations from './Citations.jsx';
 import Recommendations from './Recommendations.jsx';
+import FiguresExtracted from './FiguresExtracted.jsx';
 import Chat from './Chat.jsx';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
@@ -690,7 +782,6 @@ const LoadingText = styled.p`
   text-align: center;
 `;
 
-// New Search Bar Styling
 const SearchBar = styled.input`
   width: 90%;
   padding: 8px;
@@ -714,7 +805,6 @@ const SidebarC = ({ open, onSelectHistory, history, onDeleteHistory, onSignOut, 
   const displayName = user?.name || user?.email || 'Unknown User';
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Filter history based on search query
   const filteredHistory = Array.isArray(history) ? history.filter(item => {
     const title = item.analysis_data?.title || `Paper ${history.indexOf(item) + 1}`;
     return title.toLowerCase().includes(searchQuery.toLowerCase());
@@ -790,138 +880,150 @@ const Dashboard = () => {
   }, [token, navigate]);
 
   const handleUpload = async (file) => {
-  setLoading(true);
-  setError('');
-  setAnalysisData(null);
+    setLoading(true);
+    setError('');
+    setAnalysisData(null);
 
-  if (!token) {
-    setError('No authentication token found. Please log in.');
-    setLoading(false);
-    navigate('/');
-    return;
-  }
-
-  try {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const [analysisResponse, tablesResponse] = await Promise.all([
-      fetch('http://localhost:5000/api/analyze-pdf', {
-        method: 'POST',
-        body: formData,
-        headers: { Authorization: `Bearer ${token}` },
-      }).catch(err => ({ ok: false, error: `Analysis fetch failed: ${err.message}` })),
-      fetch('http://localhost:5000/api/extract-tables', {
-        method: 'POST',
-        body: formData,
-        headers: { Authorization: `Bearer ${token}` },
-      }).catch(err => ({ ok: false, error: `Tables fetch failed: ${err.message}` })),
-    ]);
-
-    const errors = [];
-    const data = {
-      title: "Untitled",
-      authors: ["No authors found"],
-      summary: "No summary available",
-      keywords: [],
-      citations: [],
-      tables: [],
-      recommendations: [],
-      sectionSummaries: {},
-      messages: [],
-      text: "",
-      session_id: null,
-    };
-
-    if (analysisResponse.ok) {
-      const analysisData = await analysisResponse.json();
-      console.log('Received session_id from backend:', analysisData.session_id);
-      Object.assign(data, analysisData);
-    } else {
-      const errorData = await analysisResponse.json().catch(() => ({ error: 'Unknown analysis error' }));
-      errors.push(analysisResponse.error || errorData.error);
+    if (!token) {
+      setError('No authentication token found. Please log in.');
+      setLoading(false);
+      navigate('/');
+      return;
     }
 
-    if (tablesResponse.ok) {
-      const tablesData = await tablesResponse.json();
-      data.tables = tablesData.tables || [];
-    } else {
-      const errorData = await tablesResponse.json().catch(() => ({ error: 'Unknown tables error' }));
-      errors.push(tablesResponse.error || errorData.error);
-    }
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
 
-    // Fetch recommendations only if keywords or summary exist and recommendations are not already fetched
-    if ((data.keywords.length > 0 || data.summary) && data.recommendations.length === 0) {
+      const [analysisResponse, tablesResponse, imagesResponse] = await Promise.all([
+        fetch('http://localhost:5000/api/analyze-pdf', {
+          method: 'POST',
+          body: formData,
+          headers: { Authorization: `Bearer ${token}` },
+        }).catch(err => ({ ok: false, error: `Analysis fetch failed: ${err.message}` })),
+        fetch('http://localhost:5000/api/extract-tables', {
+          method: 'POST',
+          body: formData,
+          headers: { Authorization: `Bearer ${token}` },
+        }).catch(err => ({ ok: false, error: `Tables fetch failed: ${err.message}` })),
+        fetch('http://localhost:5000/api/extract-images', {
+          method: 'POST',
+          body: formData,
+          headers: { Authorization: `Bearer ${token}` },
+        }).catch(err => ({ ok: false, error: `Images fetch failed: ${err.message}` })),
+      ]);
+
+      const errors = [];
+      const data = {
+        title: "Untitled",
+        authors: ["No authors found"],
+        summary: "No summary available",
+        keywords: [],
+        citations: [],
+        tables: [],
+        figures: [],
+        recommendations: [],
+        sectionSummaries: {},
+        messages: [],
+        text: "",
+        session_id: null,
+      };
+
+      if (analysisResponse.ok) {
+        const analysisData = await analysisResponse.json();
+        console.log('Received session_id from backend:', analysisData.session_id);
+        Object.assign(data, analysisData);
+      } else {
+        const errorData = await analysisResponse.json().catch(() => ({ error: 'Unknown analysis error' }));
+        errors.push(analysisResponse.error || errorData.error);
+      }
+
+      if (tablesResponse.ok) {
+        const tablesData = await tablesResponse.json();
+        data.tables = tablesData.tables || [];
+      } else {
+        const errorData = await tablesResponse.json().catch(() => ({ error: 'Unknown tables error' }));
+        errors.push(tablesResponse.error || errorData.error);
+      }
+
+      if (imagesResponse.ok) {
+        const imagesData = await imagesResponse.json();
+        data.figures = imagesData.figures || [];
+      } else {
+        const errorData = await imagesResponse.json().catch(() => ({ error: 'Unknown images error' }));
+        errors.push(imagesResponse.error || errorData.error);
+      }
+
+      if ((data.keywords.length > 0 || data.summary) && data.recommendations.length === 0) {
+        try {
+          const recommendationsResponse = await fetch('http://localhost:5000/api/recommend', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ keywords: data.keywords, summary: data.summary }),
+          });
+          if (recommendationsResponse.ok) {
+            const recommendations = await recommendationsResponse.json();
+            const uniqueRecommendations = [];
+            const seenTitles = new Set();
+            for (const rec of recommendations) {
+              const title = rec.title || '';
+              if (!seenTitles.has(title)) {
+                seenTitles.add(title);
+                uniqueRecommendations.push(rec);
+              }
+              if (uniqueRecommendations.length >= 5) break;
+            }
+            data.recommendations = uniqueRecommendations;
+            console.log('Fetched and deduplicated recommendations:', data.recommendations);
+          } else {
+            const errorData = await recommendationsResponse.json().catch(() => ({ error: 'Unknown recommendations error' }));
+            errors.push(errorData.error);
+          }
+        } catch (err) {
+          errors.push(`Recommendations error: ${err.message}`);
+        }
+      }
+
       try {
-        const recommendationsResponse = await fetch('http://localhost:5000/api/recommend', {
+        const saveResponse = await fetch('http://localhost:5000/api/paper-analysis', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ keywords: data.keywords, summary: data.summary }),
+          body: JSON.stringify({ analysis_data: data }),
         });
-        if (recommendationsResponse.ok) {
-          const recommendations = await recommendationsResponse.json();
-          // Deduplicate and limit to 5 recommendations
-          const uniqueRecommendations = [];
-          const seenTitles = new Set();
-          for (const rec of recommendations) {
-            const title = rec.title || '';
-            if (!seenTitles.has(title)) {
-              seenTitles.add(title);
-              uniqueRecommendations.push(rec);
-            }
-            if (uniqueRecommendations.length >= 5) break;
-          }
-          data.recommendations = uniqueRecommendations;
-          console.log('Fetched and deduplicated recommendations:', data.recommendations);
-        } else {
-          const errorData = await recommendationsResponse.json().catch(() => ({ error: 'Unknown recommendations error' }));
-          errors.push(errorData.error);
+        if (!saveResponse.ok) {
+          const errorData = await saveResponse.json().catch(() => ({ error: 'Unknown save error' }));
+          errors.push(`Save Analysis: ${errorData.error}`);
         }
       } catch (err) {
-        errors.push(`Recommendations error: ${err.message}`);
+        errors.push(`Save error: ${err.message}`);
       }
-    }
 
-    try {
-      const saveResponse = await fetch('http://localhost:5000/api/paper-analysis', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ analysis_data: data }),
-      });
-      if (!saveResponse.ok) {
-        const errorData = await saveResponse.json().catch(() => ({ error: 'Unknown save error' }));
-        errors.push(`Save Analysis: ${errorData.error}`);
+      setAnalysisData(data);
+      console.log('Final analysis data set:', data);
+
+      try {
+        const historyResponse = await fetch('http://localhost:5000/api/user-history', {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (historyResponse.ok) {
+          const historyData = await historyResponse.json();
+          setHistory(historyData.history || []);
+        }
+      } catch (err) {
+        console.error('Error updating history after analysis:', err);
       }
-    } catch (err) {
-      errors.push(`Save error: ${err.message}`);
-    }
 
-    setAnalysisData(data);
-    console.log('Final analysis data set:', data);
-
-    try {
-      const historyResponse = await fetch('http://localhost:5000/api/user-history', {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      if (historyResponse.ok) {
-        const historyData = await historyResponse.json();
-        setHistory(historyData.history || []);
+      if (errors.length > 0) {
+        setError(`Partial errors occurred: ${errors.join('; ')}`);
+        console.error('API errors:', errors);
       }
     } catch (err) {
-      console.error('Error updating history after analysis:', err);
+      setError('Error processing PDF: ' + err.message);
+      console.error('Upload error:', err);
+    } finally {
+      setLoading(false);
     }
-
-    if (errors.length > 0) {
-      setError(`Partial errors occurred: ${errors.join('; ')}`);
-      console.error('API errors:', errors);
-    }
-  } catch (err) {
-    setError('Error processing PDF: ' + err.message);
-    console.error('Upload error:', err);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const handleHistorySelect = (item) => {
     const selectedData = item.analysis_data || {};
@@ -932,6 +1034,7 @@ const Dashboard = () => {
     selectedData.keywords = selectedData.keywords || [];
     selectedData.citations = selectedData.citations || [];
     selectedData.tables = selectedData.tables || [];
+    selectedData.figures = selectedData.figures || [];
     selectedData.recommendations = selectedData.recommendations || [];
     selectedData.sectionSummaries = selectedData.sectionSummaries || {};
     selectedData.text = selectedData.text || '';
@@ -1005,7 +1108,7 @@ const Dashboard = () => {
         <UploadContainer>
           <UploadDesc>Upload Your Research Paper <br></br>& Unlock Powerful Insights Instantly!</UploadDesc>
           <UploadButton handleUpload={handleUpload} />
-          </UploadContainer>}
+        </UploadContainer>}
         {loading && (
           <LoadingContainer>
             <Spinner />
@@ -1013,7 +1116,6 @@ const Dashboard = () => {
           </LoadingContainer>
         )}
         {error && <ErrorMessage>{error}</ErrorMessage>}
-        {!analysisData && !loading }
         {analysisData && !loading && (
           <div>
             <PaperTitle title={analysisData.title || 'Untitled'} />
@@ -1030,6 +1132,7 @@ const Dashboard = () => {
             <TablesExtracted tables={analysisData.tables || []} />
             <Citations citations={analysisData.citations || []} />
             <Recommendations recommendations={analysisData.recommendations || []} />
+            <FiguresExtracted figures={analysisData.figures || []} />
             <Chat sessionId={analysisData.session_id || ''} messages={analysisData.messages || []} />
             <DownloadButtonsContainer>
               <DownloadPDFBtn analysisData={analysisData} />
