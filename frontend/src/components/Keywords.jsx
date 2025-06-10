@@ -13,7 +13,7 @@
 // `;
 
 // const Title = styled.h3`
-// margin :0;
+//   margin: 0;
 //   font-size: 1.2rem;
 // `;
 
@@ -29,7 +29,6 @@
 //   padding: 5px 10px;
 //   margin: 5px;
 //   border-radius: 4px;
-  
 //   &:hover {
 //     box-shadow: 0 4px 8px rgba(10, 10, 10, 0.6);
 //     cursor: pointer;
@@ -43,17 +42,21 @@
 //   margin-bottom: 10px;
 // `;
 
-// const Keywords = ({ keywords }) => (
+// const Keywords = ({ keywords, onKeywordClick }) => (
 //   <Card>
 //     <Header>
-//     <Title>Keywords</Title>
-//     <CopyToClipboard text={keywords} />
+//       <Title>Keywords</Title>
+//       <CopyToClipboard text={keywords} />
 //     </Header>
-    
 //     <KeywordList>
 //       {keywords && keywords.length > 0 ? (
 //         keywords.map((keyword, index) => (
-//           <KeywordItem key={index}  title="Ask AI">{keyword}</KeywordItem>
+//           <KeywordItem
+//             key={index}
+//             onClick={() => onKeywordClick(keyword)}
+//           >
+//             {keyword}
+//           </KeywordItem>
 //         ))
 //       ) : (
 //         <p>No keywords available</p>
@@ -73,6 +76,9 @@
 
 
 
+
+
+// trying toooltip
 import React from 'react';
 import styled from 'styled-components';
 import CopyToClipboard from './CopyToClipboard';
@@ -104,9 +110,29 @@ const KeywordItem = styled.li`
   padding: 5px 10px;
   margin: 5px;
   border-radius: 4px;
+  position: relative; /* Added for tooltip positioning */
   &:hover {
     box-shadow: 0 4px 8px rgba(10, 10, 10, 0.6);
     cursor: pointer;
+  }
+`;
+
+const Tooltip = styled.span`
+  visibility: hidden;
+  background-color: #d2ff72;
+  color: #000;
+  text-align: center;
+  border-radius: 4px;
+  padding: 5px 10px;
+  position: absolute;
+  z-index: 1;
+  bottom: 125%; /* Position above the keyword */
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 0.8rem;
+  ${KeywordItem}:hover & {
+    visibility: visible;
   }
 `;
 
@@ -131,6 +157,7 @@ const Keywords = ({ keywords, onKeywordClick }) => (
             onClick={() => onKeywordClick(keyword)}
           >
             {keyword}
+            <Tooltip>Know More with AI</Tooltip>
           </KeywordItem>
         ))
       ) : (

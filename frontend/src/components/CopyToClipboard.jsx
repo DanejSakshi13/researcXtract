@@ -22,7 +22,8 @@ const CopyButton = styled.button`
 const FeedbackText = styled.span`
   color: #d2ff72;
   font-size: 0.9rem;
-  margin-left: 5px;
+  /* margin-left: 5px; */
+  margin-left: -2vw;
   opacity: ${props => (props.visible ? 1 : 0)};
   transition: opacity 0.3s;
 `;

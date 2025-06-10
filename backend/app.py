@@ -1171,7 +1171,53 @@
 
 
 
-# after img extraction
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# perfect - after img extraction
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import pdfplumber
@@ -1189,6 +1235,7 @@ from numpy import dot
 from numpy.linalg import norm
 import imghdr
 import pymongo
+import scipy.stats as stats
 from bson.objectid import ObjectId
 import logging
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity, set_access_cookies, unset_jwt_cookies
@@ -1200,6 +1247,11 @@ from io import BytesIO
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.enum.text import PP_ALIGN
+from pdf2image import convert_from_bytes
+import numpy as np
+import cv2
+from PIL import Image
+import io
 
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173", "methods": ["GET", "POST", "OPTIONS", "DELETE"], "allow_headers": ["Content-Type", "Authorization"]}})
@@ -1268,9 +1320,9 @@ def query_gemini(prompt, max_tokens=512, retries=3, delay=10, image_data=None):
                 print(f"Quota exceeded, retrying in {delay} seconds... (Attempt {attempt + 1}/{retries})")
                 time.sleep(delay)
                 continue
-            raise Exception(f"Gemini API quota exceeded after {retries} retries: {str(e)}")
+            raise Exception(f"Quota exceeded after {retries} retries: {str(e)}")
         except Exception as e:
-            raise Exception(f"Gemini API request failed: {str(e)}")
+            raise Exception(f"API request failed: {str(e)}")
 
 def cosine_similarity(a, b):
     return dot(a, b) / (norm(a) * norm(b))
@@ -1351,6 +1403,11 @@ def user_history():
 @app.route("/api/analyze-pdf", methods=["POST"])
 @jwt_required()
 def analyze_pdf():
+
+    # logger.info("Starting 150-second delay for /api/analyze-pdf")
+    # time.sleep(100)
+    # logger.info("Delay completed, proceeding with PDF analysis")
+
     if "file" not in request.files:
         return jsonify({"error": "No file provided"}), 400
     file = request.files["file"]
@@ -1401,7 +1458,7 @@ def analyze_pdf():
         {prompt_text}
         """
         response_text = query_gemini(prompt, max_tokens=4000)
-        print(f"Raw Gemini response: {response_text}")
+        print(f"Raw response: {response_text}")
 
         response_text = re.sub(r'^```json\n|\n```$', '', response_text).strip()
 
@@ -1409,7 +1466,7 @@ def analyze_pdf():
             result = json.loads(response_text)
         except json.JSONDecodeError as e:
             print(f"JSON parsing error: {str(e)}")
-            return jsonify({"error": f"Failed to parse Gemini response as JSON: {str(e)}"}), 500
+            return jsonify({"error": f"Failed to parse response as JSON: {str(e)}"}), 500
 
         analysis_data = {
             "title": result.get("title", "Untitled"),
@@ -1466,7 +1523,7 @@ def summarize_section():
         {prompt_text}
         """
         response_text = query_gemini(prompt, max_tokens=1000)
-        print(f"Raw Gemini response for section {section}: {response_text}")
+        print(f"Raw response for section {section}: {response_text}")
 
         response_text = re.sub(r'^```json\n|\n```$', '', response_text).strip()
 
@@ -1474,7 +1531,7 @@ def summarize_section():
             result = json.loads(response_text)
         except json.JSONDecodeError as e:
             print(f"JSON parsing error for section {section}: {str(e)}")
-            return jsonify({"error": f"Failed to parse Gemini response as JSON: {str(e)}"}), 500
+            return jsonify({"error": f"Failed to parse response as JSON: {str(e)}"}), 500
 
         response_data = {
             "section": result.get("section", section),
@@ -1493,6 +1550,18 @@ def summarize_section():
         return jsonify({"error": f"Section summary failed: {str(e)}"}), 500
 
 
+# Helper function to calculate image entropy
+def calculate_entropy(image):
+    # Convert image to grayscale if not already
+    if len(image.shape) == 3:
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    # Calculate histogram
+    hist = cv2.calcHist([image], [0], None, [256], [0, 256])
+    hist = hist / hist.sum()  # Normalize
+    # Calculate entropy
+    entropy = stats.entropy(hist, base=2)
+    return entropy[0]
+
 @app.route("/api/extract-images", methods=["POST"])
 @jwt_required()
 def extract_images():
@@ -1505,58 +1574,80 @@ def extract_images():
     try:
         figures = []
         pdf_bytes = file.read()
-        pages = convert_from_bytes(pdf_bytes, dpi=300)
-        logger.info(f"Converted PDF to {len(pages)} images")
+        # Open PDF with pdfplumber to analyze text content
+        with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+            pages = convert_from_bytes(pdf_bytes, dpi=200)  # Reduced DPI to save memory
+            logger.info(f"Converted PDF to {len(pages)} images")
 
-        for page_num, page_image in enumerate(pages, 1):
-            img_array = np.array(page_image.convert("RGB"))
-            img = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            # Fixed the syntax error by removing the duplicate line and correcting parentheses
-            _, thresh = cv2.threshold(gray, 240, 255, cv2.THRESH_BINARY_INV)
-            kernel = np.ones((5, 5), np.uint8)
-            dilated = cv2.dilate(thresh, kernel, iterations=2)
-            contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-            with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+            for page_num, page_image in enumerate(pages, 1):
+                # Check if the page contains "References" section
                 page = pdf.pages[page_num - 1]
                 page_text = page.extract_text() or ""
-
-            img_idx = 0
-            for contour in contours:
-                x, y, w, h = cv2.boundingRect(contour)
-                area = w * h
-                if area < 50000 or area > (img.shape[0] * img.shape[1] * 0.8):
+                if "References" in page_text or "REFERENCES" in page_text:
+                    logger.info(f"Skipping page {page_num}: Contains References section")
                     continue
 
-                img_idx += 1
-                figure_img = img[y:y+h, x:x+w]
-                figure_img_rgb = cv2.cvtColor(figure_img, cv2.COLOR_BGR2RGB)
-                pil_img = Image.fromarray(figure_img_rgb)
-                buffer = io.BytesIO()
-                pil_img.save(buffer, format="PNG")
-                img_data = buffer.getvalue()
-                base64_data = base64.b64encode(img_data).decode("utf-8")
-                img_type = "png"
+                img_array = np.array(page_image.convert("RGB"))
+                img = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
+                gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-                caption = f"Figure {img_idx} on Page {page_num}"
-                caption_match = re.search(r'(?i)Figure\s+\d+\s*[:\.\-\s]*(.*?)(?=\n|$)', page_text, re.MULTILINE)
-                if caption_match:
-                    caption = caption_match.group(0).strip()
-                else:
-                    lines = page_text.split('\n')
-                    for line in lines:
-                        if re.match(r'(?i)Figure\s+\d+', line):
-                            caption = line.strip()
-                            break
+                # Apply edge detection to better identify image regions
+                edges = cv2.Canny(gray, 50, 150)
+                # Dilate edges to connect nearby edges
+                kernel = np.ones((5, 5), np.uint8)
+                dilated = cv2.dilate(edges, kernel, iterations=2)
+                contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-                figures.append({
-                    "page": page_num,
-                    "caption": caption,
-                    "image": base64_data,
-                    "type": img_type
-                })
-                logger.info(f"Page {page_num}, Image {img_idx}: Extracted {img_type} image, Base64 length: {len(base64_data)}, Caption: {caption}")
+                img_idx = 0
+                for contour in contours:
+                    x, y, w, h = cv2.boundingRect(contour)
+                    area = w * h
+                    aspect_ratio = w / h if h > 0 else 0
+
+                    # Enhanced filtering:
+                    # - Larger minimum area to exclude small text regions
+                    # - Exclude regions that are too large (likely entire page)
+                    # - Exclude narrow regions typical of text (aspect ratio too high or too low)
+                    # - Exclude regions with low entropy (likely text)
+                    if (area < 100000 or  # Increased minimum area
+                        area > (img.shape[0] * img.shape[1] * 0.6) or  # Reduced max area threshold
+                        aspect_ratio < 0.2 or aspect_ratio > 5):  # Aspect ratio filter
+                        continue
+
+                    # Extract the region and calculate entropy
+                    figure_img = img[y:y+h, x:x+w]
+                    entropy = calculate_entropy(figure_img)
+                    if entropy < 3:  # Low entropy indicates text-like content
+                        logger.info(f"Page {page_num}, Region at ({x}, {y}): Skipped, low entropy ({entropy})")
+                        continue
+
+                    img_idx += 1
+                    figure_img_rgb = cv2.cvtColor(figure_img, cv2.COLOR_BGR2RGB)
+                    pil_img = Image.fromarray(figure_img_rgb)
+                    buffer = io.BytesIO()
+                    pil_img.save(buffer, format="PNG")
+                    img_data = buffer.getvalue()
+                    base64_data = base64.b64encode(img_data).decode("utf-8")
+                    img_type = "png"
+
+                    caption = f"Figure {img_idx} on Page {page_num}"
+                    caption_match = re.search(r'(?i)Figure\s+\d+\s*[:\.\-\s]*(.*?)(?=\n|$)', page_text, re.MULTILINE)
+                    if caption_match:
+                        caption = caption_match.group(0).strip()
+                    else:
+                        lines = page_text.split('\n')
+                        for line in lines:
+                            if re.match(r'(?i)Figure\s+\d+', line):
+                                caption = line.strip()
+                                break
+
+                    figures.append({
+                        "page": page_num,
+                        "caption": caption,
+                        "image": base64_data,
+                        "type": img_type
+                    })
+                    logger.info(f"Page {page_num}, Image {img_idx}: Extracted {img_type} image, Base64 length: {len(base64_data)}, Caption: {caption}, Entropy: {entropy}")
 
         logger.info(f"Total valid figures extracted: {len(figures)}")
         return jsonify({"figures": figures})
@@ -1564,6 +1655,8 @@ def extract_images():
         logger.error(f"Image extraction error: {str(e)}")
         return jsonify({"error": f"Image extraction failed: {str(e)}"}), 500
 
+
+# PERFECT
 @app.route("/api/extract-tables", methods=["POST"])
 @jwt_required()
 def extract_tables():
@@ -1612,6 +1705,7 @@ def extract_tables():
         print(f"Table extraction error: {str(e)}")
         return jsonify({"error": f"Table extraction failed: {str(e)}"}), 500
 
+
 @app.route("/api/recommend", methods=["POST"])
 @jwt_required()
 def recommend():
@@ -1640,7 +1734,7 @@ def recommend():
         {summary[:1000]}
         """
         response_text = query_gemini(prompt, max_tokens=1000)
-        logger.info(f"Raw Gemini response for recommendations: {response_text}")
+        logger.info(f"Raw response for recommendations: {response_text}")
 
         response_text = re.sub(r'^```json\n|\n```$', '', response_text).strip()
 
@@ -1648,7 +1742,7 @@ def recommend():
             recommendations = json.loads(response_text)
         except json.JSONDecodeError as e:
             logger.error(f"JSON parsing error for recommendations: {str(e)}")
-            return jsonify({"error": f"Failed to parse Gemini response as JSON: {str(e)}"}), 500
+            return jsonify({"error": f"Failed to parse response as JSON: {str(e)}"}), 500
 
         if not isinstance(recommendations, list) or len(recommendations) != 5:
             logger.error(f"Invalid number of recommendations: {len(recommendations)}")
@@ -1664,6 +1758,7 @@ def recommend():
     except Exception as e:
         logger.error(f"Recommendations error: {str(e)}")
         return jsonify({"error": f"Recommendations failed: {str(e)}"}), 500
+
 
 @app.route("/api/chat", methods=["POST"])
 @jwt_required()
@@ -1687,13 +1782,28 @@ def chat():
         logger.info(f"Chat history for session {session_id}: {chat_history}")
         history_prompt = "\n".join([f"User: {msg['user']}\nAssistant: {msg['assistant']}" for msg in chat_history[-3:]])
 
-        prompt = f"""
-        You are an assistant that answers questions strictly based on the content of a research paper provided as context. 
-        Do not use external knowledge, make assumptions, or include information beyond the provided text.
-        Search the entire context, including all sections (e.g., Abstract, Introduction, Literature Survey, System Architecture, etc.), to find relevant information.
-        If the question cannot be answered based on the context, respond with "This information is not available in the paper."
-        Provide concise and accurate answers, directly addressing the user's question.
+    #     prompt = f"""
+    #    You are an assistant that answers questions strictly based on the content of a research paper provided as context.
+    #     Do not use external knowledge, make assumptions, or include information beyond the provided text. 
+    #     Search the entire context, including all sections (e.g., Abstract, Introduction, Literature Survey, System Architecture, etc.), to find relevant information. 
+    #     If the question cannot be answered based on the context, respond with "This information is not available in the paper." 
+    #     If context is not available but a word from the keywords is asked to be explained, provide a concise 2-3 line explanation using your own knowledge, limited strictly to the keyword itself, and not beyond that.
+    #     Provide concise and accurate answers, directly addressing the user's question.
         
+        prompt = f"""
+        You are an assistant designed to answer questions strictly based on the content of a research paper provided as context. Your responses must adhere to the following rules:
+        1. **Context Locking**: Answer questions only using the provided paper context. Do not use external knowledge, make assumptions, or include information beyond the context.
+        2. **Comprehensive Search**: Search all sections of the paper (e.g., Abstract, Introduction, Related Work, Literature Review, Methodology, Results, Discussion, Conclusion, Future Work) to find relevant information for the user's question. Look for keywords or phrases related to the question (e.g., for "future scope," search for "future work," "next steps," "future scope").
+        3. **Specific Questions**:
+   - For questions about conclusions, look for a "Conclusion" section or summarize key findings from "Results" or "Discussion" sections.
+   - For literature gaps, search for terms like "gap," "limitation," "challenge," or sections like "Related Work" or "Literature Review."
+   - For future scope, search for terms like "future work," "next steps," or "future scope" in sections like "Discussion" or "Conclusion."
+   - For counting images, count references to "Fig.," "Figure," "Diagram," or similar terms indicating images or illustrations.
+        4. **Keyword Explanations**: If the user asks about a keyword mentioned in the paper's context or keywords list, provide a concise 2-3 sentence explanation based on the context. If the keyword is not mentioned, respond with "This information is not available in the paper."
+        5. **Fallback Response**: If the question cannot be answered based on the context, respond with "This information is not available in the paper."
+        6. **Conciseness**: Provide clear, accurate, and concise answers, directly addressing the user's question.
+        7. **Child-Friendly Explanation**: If the user asks to "explain the paper like a 10-year-old," simplify the paper's main idea and findings using age-appropriate language. Use relatable analogies (e.g., compare concepts to toys, games, or school activities), avoid technical jargon unless simplified (e.g., explain "quantum computer" as "a super cool computer that solves puzzles really fast"), and make the explanation engaging.
+
         Context (up to 45,000 characters):
         {context}
         
@@ -1985,7 +2095,6 @@ def generate_ppt():
         Include the following sections for slides:
         - Title: The paper's title and authors
         - Summary: A concise summary (use the provided summary)
-        - Methodology: A concise summary of the paper's methodology (use sectionSummaries.Methodology if available, otherwise infer from the text)
         - Keywords: List of keywords
         - Tables: Full table data including captions and rows/columns (limit to 2 tables for brevity)
         - Figures: Full figure data including captions and page numbers (limit to 2 figures for brevity, exclude image data)
@@ -2028,7 +2137,6 @@ def generate_ppt():
         ppt_content = json.loads(response_text)
 
         logger.info(f"ppt_content.recommendations: {ppt_content.get('recommendations', [])}")
-        logger.info(f"ppt_content.methodology: {ppt_content.get('methodology', 'Not provided')}")
 
         prs = Presentation()
         slide_width = prs.slide_width
@@ -2051,18 +2159,18 @@ def generate_ppt():
         content.text = ppt_content.get("summary", "No summary available")
         content.text_frame.paragraphs[0].font.size = Pt(18)
 
-        slide = prs.slides.add_slide(slide_layout)
-        title = slide.shapes.title
-        content = slide.placeholders[1]
-        title.text = "Methodology"
-        methodology = ppt_content.get("methodology", "No methodology available")
-        if not methodology or methodology.strip() == "":
-            methodology = "No methodology available"
-            logger.warning("Methodology field empty or missing in ppt_content")
-        content.text = methodology
-        content.text_frame.paragraphs[0].font.size = Pt(16)
-        for p in content.text_frame.paragraphs:
-            p.font.size = Pt(16)
+        # slide = prs.slides.add_slide(slide_layout)
+        # title = slide.shapes.title
+        # content = slide.placeholders[1]
+        # title.text = "Methodology"
+        # methodology = ppt_content.get("methodology", "No methodology available")
+        # if not methodology or methodology.strip() == "":
+        #     methodology = "No methodology available"
+        #     logger.warning("Methodology field empty or missing in ppt_content")
+        # content.text = methodology
+        # content.text_frame.paragraphs[0].font.size = Pt(16)
+        # for p in content.text_frame.paragraphs:
+        #     p.font.size = Pt(16)
 
         slide = prs.slides.add_slide(slide_layout)
         title = slide.shapes.title
@@ -2217,7 +2325,7 @@ def convert_citations():
         """
         max_tokens = 3000
         response_text = query_gemini(prompt, max_tokens=max_tokens)
-        logger.info(f"Raw Gemini response for {style} conversion: {response_text}")
+        logger.info(f"Raw response for {style} conversion: {response_text}")
 
         json_match = re.search(r'```json\n([\s\S]*?)\n```', response_text, re.MULTILINE)
         if json_match:
@@ -2244,6 +2352,97 @@ def convert_citations():
         logger.error(f"Citation conversion error: {str(e)}")
         return jsonify({"error": f"Failed to convert citations: {str(e)}"}), 500
 
+
+@app.route("/api/feedback", methods=["POST"])
+@jwt_required()
+def submit_feedback():
+    try:
+        email = get_jwt_identity()
+        data = request.get_json()
+        session_id = data.get("session_id", "")
+        feedback = data.get("feedback", "").lower()
+
+        if not session_id:
+            logger.error("Missing session_id in feedback request")
+            return jsonify({"error": "Missing session ID"}), 400
+        if feedback not in ["up", "down"]:
+            logger.error(f"Invalid feedback value: {feedback}")
+            return jsonify({"error": "Feedback must be 'up' or 'down'"}), 400
+
+        analysis = analyses_collection.find_one({"session_id": session_id, "email": email})
+        if not analysis:
+            logger.error(f"No analysis found for session_id: {session_id}, email: {email}")
+            return jsonify({"error": "No analysis found for this session ID"}), 404
+
+        analyses_collection.update_one(
+            {"session_id": session_id, "email": email},
+            {"$set": {"feedback": feedback}},
+            upsert=True
+        )
+        logger.info(f"Feedback submitted for session {session_id} by {email}: {feedback}")
+        return jsonify({"message": "Feedback submitted successfully"}), 200
+    except Exception as e:
+        logger.error(f"Feedback submission error: {str(e)}")
+        return jsonify({"error": f"Failed to submit feedback: {str(e)}"}), 500
+
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

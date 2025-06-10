@@ -824,12 +824,12 @@ const Home = () => {
             <FeatureDescription>Extract all citations from the paper’s references section, preserving their exact formatting for easy use.</FeatureDescription>
           </FeatureCard>
           <FeatureCard>
-            <FeatureTitle>Table Extraction</FeatureTitle>
-            <FeatureDescription>Effortlessly extract tables from PDFs, complete with captions and structured data, for quick analysis.</FeatureDescription>
+            <FeatureTitle>Table and Image Extraction </FeatureTitle>
+            <FeatureDescription>Effortlessly extract tables and images from PDFs, preserving visual content for reference, reuse and quick analysis.</FeatureDescription>
           </FeatureCard>
           <FeatureCard>
-            <FeatureTitle>Image Extraction</FeatureTitle>
-            <FeatureDescription>Seamlessly extract images from PDFs, preserving visual content for reference, analysis, or reuse.</FeatureDescription>
+            <FeatureTitle>Table to Graph</FeatureTitle>
+            <FeatureDescription>Seamlessly visualize tabular numerical data into suitable graph of choice.</FeatureDescription>
           </FeatureCard>
           <FeatureCard>
             <FeatureTitle>Paper Recommendations</FeatureTitle>

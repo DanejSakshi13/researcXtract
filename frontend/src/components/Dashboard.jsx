@@ -576,7 +576,7 @@
 
 
 /* trying images */
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import styled, { keyframes } from 'styled-components';
 import UploadButton from './UploadButton.jsx';
 import PaperTitle from './PaperTitle.jsx';
@@ -588,6 +588,8 @@ import Citations from './Citations.jsx';
 import Recommendations from './Recommendations.jsx';
 import FiguresExtracted from './FiguresExtracted.jsx';
 import Chat from './Chat.jsx';
+import Feedback from './Feedback.jsx';
+import ErrorBoundary from './ErrorBoundary.jsx';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -596,7 +598,6 @@ import DownloadPDFBtn from './DownloadPDFBtn.jsx';
 import DownloadPPTBtn from './DownloadPPTBtn.jsx';
 import AccountCircleRoundedIcon from '@mui/icons-material/AccountCircleRounded';
 
-// Define the spinning animation
 const spin = keyframes`
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
@@ -855,6 +856,8 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [history, setHistory] = useState([]);
+  const [prefillChatMessage, setPrefillChatMessage] = useState('');
+  const chatRef = useRef(null);
 
   useEffect(() => {
     if (!token) {
@@ -1090,6 +1093,25 @@ const Dashboard = () => {
     navigate('/');
   };
 
+  const handleKeywordClick = (keyword) => {
+    const confirmAction = window.confirm(`Do you want to learn more about "${keyword}" in the chat?`);
+    if (confirmAction) {
+      if (!analysisData) {
+        setError('Please upload a PDF or select a history item to use the chat feature.');
+        return;
+      }
+      setPrefillChatMessage(`Explain "${keyword}"`);
+      setTimeout(() => {
+        if (chatRef.current) {
+          chatRef.current.scrollIntoView({ behavior: 'smooth' });
+        } else {
+          console.warn('Chat component not found in the DOM.');
+          setError('Chat section not available. Please ensure a PDF is uploaded.');
+        }
+      }, 0); // Small delay to ensure DOM update
+    }
+  };
+
   return (
     <div>
       <ToggleButton onClick={() => setSidebarOpen(!sidebarOpen)} open={sidebarOpen}>
@@ -1104,11 +1126,11 @@ const Dashboard = () => {
         handleUpload={handleUpload}
       />
       <DashboardContainer $isSidebarOpen={sidebarOpen}>
-        {!analysisData && !loading && 
-        <UploadContainer>
-          <UploadDesc>Upload Your Research Paper <br></br>& Unlock Powerful Insights Instantly!</UploadDesc>
-          <UploadButton handleUpload={handleUpload} />
-        </UploadContainer>}
+        {!analysisData && !loading &&
+          <UploadContainer>
+            <UploadDesc>Upload Your Research Paper <br></br>& Unlock Powerful Insights Instantly!</UploadDesc>
+            <UploadButton handleUpload={handleUpload} />
+          </UploadContainer>}
         {loading && (
           <LoadingContainer>
             <Spinner />
@@ -1121,7 +1143,7 @@ const Dashboard = () => {
             <PaperTitle title={analysisData.title || 'Untitled'} />
             <KeywordAuth>
               <Author authors={analysisData.authors || ['No authors found']} />
-              <Keywords keywords={analysisData.keywords || []} />
+              <Keywords keywords={analysisData.keywords || []} onKeywordClick={handleKeywordClick} />
             </KeywordAuth>
             <Summarizer
               summary={analysisData.summary || 'No summary available'}
@@ -1133,12 +1155,19 @@ const Dashboard = () => {
             <Citations citations={analysisData.citations || []} />
             <Recommendations recommendations={analysisData.recommendations || []} />
             <FiguresExtracted figures={analysisData.figures || []} />
-            <Chat sessionId={analysisData.session_id || ''} messages={analysisData.messages || []} />
+            <Chat
+              ref={chatRef}
+              sessionId={analysisData.session_id || ''}
+              messages={analysisData.messages || []}
+              prefillMessage={prefillChatMessage}
+            />
             <DownloadButtonsContainer>
               <DownloadPDFBtn analysisData={analysisData} />
               <DownloadPPTBtn analysisData={analysisData} />
             </DownloadButtonsContainer>
-          </div>
+            <ErrorBoundary componentName="Feedback">
+              <Feedback sessionId={analysisData.session_id || ''} initialFeedback={analysisData.feedback || null} />
+            </ErrorBoundary>          </div>
         )}
       </DashboardContainer>
     </div>
