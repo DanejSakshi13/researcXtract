@@ -2440,7 +2440,14 @@ from PIL import Image
 import io
 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": ["http://localhost:5173", "https://researcxtract.vercel.app/"], "methods": ["GET", "POST", "OPTIONS", "DELETE"], "allow_headers": ["Content-Type", "Authorization"]}})
+
+
+CORS(app, resources={r"/api/*": {
+    "origins": ["http://localhost:5173", "https://researcxtract.vercel.app/"],
+    "methods": ["GET", "POST", "OPTIONS", "DELETE"],
+    "allow_headers": ["Content-Type", "Authorization"]
+}})
+
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -3618,4 +3625,5 @@ def submit_feedback():
 #     app.run(debug=True, host="0.0.0.0", port=5000)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)), debug=False)
+    port = int(os.getenv("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=False)
