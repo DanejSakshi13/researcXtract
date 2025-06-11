@@ -484,6 +484,7 @@ import React, { useState, useContext } from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import API_URL from '../config';
 
 const HomeContainer = styled.div`
   background: linear-gradient(135deg, #2c2c2c, #4a4a4a);
@@ -776,7 +777,7 @@ const Home = () => {
       return;
     }
     try {
-      const response = await fetch('http://localhost:5000/api/register', {
+      const response = await fetch(`${API_URL}/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, name }),

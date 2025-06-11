@@ -1,28 +1,3 @@
-// import React from 'react';
-// import styled from 'styled-components';
-
-// const Button = styled.button`
-//   padding: 10px 20px;
-//   background-color: #d2ff72;
-//   color: #333;
-//   border: none;
-//   border-radius: 4px;
-//   cursor: pointer;
-//   transition: background-color 0.3s;
-//   margin: 10px;
-
-//   &:hover {
-//     background-color: #b8e65a;
-//   }
-// `;
-
-// const DownloadPDFBtn = () => (
-//   <Button onClick={() => console.log('Download PDF clicked')}>
-//     Download PDF
-//   </Button>
-// );
-
-// export default DownloadPDFBtn;
 
 
 
@@ -30,6 +5,7 @@ import React from 'react';
 import styled from 'styled-components';
 import { AuthContext } from '../context/AuthContext';
 import { useContext } from 'react';
+import API_URL from '../config';
 
 const Button = styled.button`
   padding: 10px 20px;
@@ -51,7 +27,7 @@ const DownloadPDFBtn = ({ analysisData }) => {
 
   const handleDownload = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/generate-pdf', {
+      const response = await fetch(`${API_URL}/generate-pdf`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

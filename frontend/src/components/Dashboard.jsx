@@ -597,6 +597,8 @@ import { faArrowLeft, faArrowRight, faTrash } from '@fortawesome/free-solid-svg-
 import DownloadPDFBtn from './DownloadPDFBtn.jsx';
 import DownloadPPTBtn from './DownloadPPTBtn.jsx';
 import AccountCircleRoundedIcon from '@mui/icons-material/AccountCircleRounded';
+import API_URL from '../config.js';
+
 
 const spin = keyframes`
   0% { transform: rotate(0deg); }
@@ -865,7 +867,7 @@ const Dashboard = () => {
       navigate('/');
       return;
     }
-    fetch('http://localhost:5000/api/user-history', {
+    fetch(`${API_URL}/user-history`, {
       headers: { 'Authorization': `Bearer ${token}` },
     })
       .then(res => {
@@ -899,17 +901,17 @@ const Dashboard = () => {
       formData.append('file', file);
 
       const [analysisResponse, tablesResponse, imagesResponse] = await Promise.all([
-        fetch('http://localhost:5000/api/analyze-pdf', {
+        fetch(`${API_URL}/analyze-pdf`, {
           method: 'POST',
           body: formData,
           headers: { Authorization: `Bearer ${token}` },
         }).catch(err => ({ ok: false, error: `Analysis fetch failed: ${err.message}` })),
-        fetch('http://localhost:5000/api/extract-tables', {
+        fetch(`${API_URL}/extract-tables`, {
           method: 'POST',
           body: formData,
           headers: { Authorization: `Bearer ${token}` },
         }).catch(err => ({ ok: false, error: `Tables fetch failed: ${err.message}` })),
-        fetch('http://localhost:5000/api/extract-images', {
+        fetch(`${API_URL}/extract-images`, {
           method: 'POST',
           body: formData,
           headers: { Authorization: `Bearer ${token}` },
@@ -959,7 +961,7 @@ const Dashboard = () => {
 
       if ((data.keywords.length > 0 || data.summary) && data.recommendations.length === 0) {
         try {
-          const recommendationsResponse = await fetch('http://localhost:5000/api/recommend', {
+          const recommendationsResponse = await fetch(`${API_URL}/recommend`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify({ keywords: data.keywords, summary: data.summary }),
@@ -988,7 +990,7 @@ const Dashboard = () => {
       }
 
       try {
-        const saveResponse = await fetch('http://localhost:5000/api/paper-analysis', {
+        const saveResponse = await fetch(`${API_URL}/paper-analysis`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ analysis_data: data }),
@@ -1005,7 +1007,7 @@ const Dashboard = () => {
       console.log('Final analysis data set:', data);
 
       try {
-        const historyResponse = await fetch('http://localhost:5000/api/user-history', {
+        const historyResponse = await fetch(`${API_URL}/user-history`, {
           headers: { 'Authorization': `Bearer ${token}` },
         });
         if (historyResponse.ok) {
@@ -1054,7 +1056,7 @@ const Dashboard = () => {
     if (!token || !id) return;
 
     try {
-      const response = await fetch(`http://localhost:5000/api/paper-analysis/${id}`, {
+      const response = await fetch(`${API_URL}/paper-analysis/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
       });
@@ -1077,7 +1079,7 @@ const Dashboard = () => {
 
   const handleSignOut = async () => {
     try {
-      await fetch('http://localhost:5000/api/logout', {
+      await fetch(`${API_URL}/logout`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
       });

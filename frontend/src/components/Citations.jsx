@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { AuthContext } from '../context/AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronDown, faChevronUp, faClipboard } from '@fortawesome/free-solid-svg-icons';
+import API_URL from '../config';
 
 const Card = styled.div`
   background-color: #2c2c2c;
@@ -148,7 +149,7 @@ const Citations = ({ citations }) => {
       setError('');
 
       try {
-        const response = await fetch('http://localhost:5000/api/convert-citations', {
+        const response = await fetch(`${API_URL}/convert-citations`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

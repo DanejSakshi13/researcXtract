@@ -259,7 +259,7 @@ const Summarizer = ({ summary, sessionId, sectionSummaries = {}, setAnalysisData
       } else if (section === 'Entire Paper') {
         setCurrentSummary(summary);
       } else {
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/summarize-section`, {
+        const response = await fetch(`${API_URL}/summarize-section`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

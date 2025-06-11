@@ -225,6 +225,7 @@ import React, { useState, useEffect, useContext, forwardRef } from 'react';
 import styled from 'styled-components';
 import ReactMarkdown from 'react-markdown';
 import { AuthContext } from '../context/AuthContext';
+import API_URL from '../config';
 
 const ChatContainer = styled.div`
   margin-top: 20px;
@@ -355,7 +356,7 @@ const Chat = forwardRef(({ sessionId, messages = [], prefillMessage }, ref) => {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:5000/api/chat', {
+      const response = await fetch(`${API_URL}/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

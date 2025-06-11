@@ -32,7 +32,7 @@ const Sidebar = ({ open, onSelectHistory }) => {
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    fetch('http://localhost:5000/api/user-history', {
+    fetch(`${API_URL}/user-history`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => res.json())
