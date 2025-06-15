@@ -2490,7 +2490,9 @@ MODEL_NAME = "gemini-2.0-flash-lite"
 model = genai.GenerativeModel(MODEL_NAME)
 
 # Initialize sentence transformer for semantic similarity
-sentence_model = SentenceTransformer('all-MiniLM-L6-v2')
+# sentence_model = SentenceTransformer('all-MiniLM-L6-v2')
+# Initialize sentence transformer for semantic similarity
+sentence_model = SentenceTransformer('all-MiniLM-L6-v2', use_tf=True)
 
 # Store PDF text and chat history in memory (per session)
 pdf_context = {"text": "", "session_id": None}
